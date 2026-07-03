@@ -6,173 +6,238 @@
 <title>UNICOM Telecom — Account Setup</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 :root{
-  --navy:#002B6B;--navy2:#003a8c;
-  --amber-bg:#FEF3C7;--amber-bd:#B45309;--amber-tx:#92400E;
-  --blue-bg:#DBEAFE;--blue-bd:#1D4ED8;--blue-tx:#1E40AF;
-  --green-bg:#D1FAE5;--green:#059669;--green2:#047857;
-  --red:#DC2626;--red-bg:#FEE2E2;
-  --g50:#F9FAFB;--g100:#F3F4F6;--g200:#E5E7EB;--g300:#D1D5DB;
-  --g500:#6B7280;--g700:#374151;--g900:#111827;
-  --r:10px;--sh:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
-  --shm:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -1px rgba(0,0,0,.06);
+  --bg:#060e1d;--bg2:#0a1628;
+  --card:rgba(8,18,42,0.85);--card-bd:rgba(100,150,255,0.12);
+  --pri:#4f8aff;--pri-dark:#2d6cdb;--pri-glow:rgba(79,138,255,0.3);
+  --gold:#e0d61e;--gold-glow:rgba(224,214,30,0.3);
+  --green:#00e5a0;--green-dark:#00b87d;--green-glow:rgba(0,229,160,0.25);
+  --red:#ff4060;--red-bg:rgba(255,64,96,0.08);
+  --amber:#ffb800;--amber-bg:rgba(255,184,0,0.07);
+  --tx:#e8eeff;--tx2:rgba(232,238,255,0.55);--tx3:rgba(232,238,255,0.28);
+  --bd:rgba(100,150,255,0.1);--bd-h:rgba(100,150,255,0.25);
+  --inp:rgba(255,255,255,0.04);--inp-bd:rgba(100,150,255,0.18);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,-apple-system,sans-serif;background:#EFF4F9;color:var(--g900);min-height:100vh}
-.hdr{background:var(--navy);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shm)}
-.hdr-sub{font-size:12px;color:rgba(255,255,255,.7);margin-top:2px}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(79,138,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(79,138,255,0.025) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;top:-40%;left:-15%;width:55%;height:55%;background:radial-gradient(ellipse,rgba(0,43,107,0.35) 0%,transparent 70%);pointer-events:none;z-index:0}
+
+/* HEADER */
+.hdr{background:rgba(2,8,25,0.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid rgba(79,138,255,0.12);padding:12px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.hdr-sub{font-size:11px;color:rgba(161,182,247,0.55);margin-top:2px;letter-spacing:.05em}
 .hdr-actions{display:flex;gap:8px;align-items:center}
-.hdr-btn{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:7px 13px;border-radius:7px;text-decoration:none;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:Arial,sans-serif;transition:background .15s}
-.hdr-btn:hover{background:rgba(255,255,255,.25)}
-.save-toast{position:fixed;top:70px;right:20px;background:#1f2937;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.hdr-btn{display:flex;align-items:center;gap:6px;background:rgba(79,138,255,0.07);color:rgba(161,182,247,0.85);border:1px solid rgba(79,138,255,0.18);padding:7px 14px;border-radius:7px;text-decoration:none;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .2s;letter-spacing:.02em}
+.hdr-btn:hover{background:rgba(79,138,255,0.14);border-color:rgba(79,138,255,0.38);color:#fff}
+.save-toast{position:fixed;top:72px;right:20px;background:rgba(0,229,160,0.12);border:1px solid rgba(0,229,160,0.35);color:var(--green);padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;backdrop-filter:blur(10px)}
 .save-toast.show{opacity:1}
-.wrap{max-width:740px;margin:0 auto;padding:22px 16px 90px}
-.prog-wrap{background:#fff;border-radius:var(--r);padding:16px 20px;margin-bottom:18px;box-shadow:var(--sh)}
+
+/* LAYOUT */
+.wrap{max-width:760px;margin:0 auto;padding:28px 20px 100px;position:relative;z-index:1}
+
+/* PROGRESS */
+.prog-wrap{background:rgba(8,18,42,0.72);backdrop-filter:blur(24px);border:1px solid var(--card-bd);border-radius:14px;padding:18px 24px;margin-bottom:20px}
 .prog-steps{display:flex;align-items:flex-start}
 .prog-step{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
-.prog-step:not(:last-child)::after{content:"";position:absolute;top:14px;left:50%;width:100%;height:2px;background:var(--g200);z-index:0;transition:background .3s}
-.prog-step.done:not(:last-child)::after{background:var(--green)}
-.prog-num{width:28px;height:28px;border-radius:50%;background:var(--g200);color:var(--g500);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;transition:all .3s}
-.prog-step.active .prog-num{background:var(--navy);color:#fff}
-.prog-step.done .prog-num{background:var(--green);color:#fff}
-.prog-label{font-size:9.5px;color:var(--g500);margin-top:5px;text-align:center;font-weight:500;line-height:1.3}
-.prog-step.active .prog-label{color:var(--navy);font-weight:700}
-.prog-step.done .prog-label{color:var(--green)}
-.card{background:#fff;border-radius:var(--r);padding:24px 26px;box-shadow:var(--sh);margin-bottom:16px}
-.card-title{font-size:18px;font-weight:700;color:var(--navy);padding-bottom:11px;border-bottom:2px solid var(--navy);margin-bottom:8px}
-.card-sub{font-size:13.5px;color:var(--g500);margin-bottom:18px;line-height:1.5}
-.ibox{border-left:4px solid var(--amber-bd);border-radius:6px;padding:12px 15px;margin-bottom:16px;font-size:13.5px;line-height:1.6}
-.ibox.amber{background:var(--amber-bg);color:var(--amber-tx)}
-.ibox.blue{background:var(--blue-bg);color:var(--blue-tx);border-color:var(--blue-bd)}
-.ibox.red{background:var(--red-bg);color:#991b1b;border-color:var(--red)}
+.prog-step:not(:last-child)::after{content:'';position:absolute;top:14px;left:50%;width:100%;height:1px;background:var(--bd);z-index:0;transition:background .4s}
+.prog-step.done:not(:last-child)::after{background:linear-gradient(90deg,var(--pri),rgba(79,138,255,.4))}
+.prog-num{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.04);color:var(--tx3);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;border:1px solid var(--bd);transition:all .3s}
+.prog-step.active .prog-num{background:var(--pri);color:#fff;border-color:var(--pri);box-shadow:0 0 18px var(--pri-glow)}
+.prog-step.done .prog-num{background:rgba(0,229,160,.12);color:var(--green);border-color:rgba(0,229,160,.35);box-shadow:0 0 10px var(--green-glow)}
+.prog-label{font-size:9px;color:var(--tx3);margin-top:6px;text-align:center;font-weight:600;line-height:1.3;letter-spacing:.05em;text-transform:uppercase}
+.prog-step.active .prog-label{color:var(--pri)}.prog-step.done .prog-label{color:var(--green)}
+
+/* CARD */
+.card{background:var(--card);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--card-bd);border-radius:16px;padding:26px 28px;margin-bottom:16px;box-shadow:0 4px 32px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)}
+.card-title{font-size:17px;font-weight:700;color:var(--tx);padding-bottom:14px;margin-bottom:10px;border-bottom:1px solid var(--bd);letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.card-title::before{content:'';display:inline-block;width:3px;height:18px;background:linear-gradient(180deg,var(--pri),var(--gold));border-radius:2px;flex-shrink:0}
+.card-sub{font-size:13.5px;color:var(--tx2);margin-bottom:20px;line-height:1.6}
+
+/* INFO BOXES */
+.ibox{border-left:3px solid;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13.5px;line-height:1.6}
+.ibox.amber{background:var(--amber-bg);border-color:var(--amber);color:rgba(255,184,0,.9)}
+.ibox.blue{background:rgba(79,138,255,.06);border-color:var(--pri);color:rgba(161,182,247,.9)}
+.ibox.red{background:var(--red-bg);border-color:var(--red);color:rgba(255,100,120,.9)}
 .ibox strong{display:block;margin-bottom:4px;font-weight:700}
-.sbox{background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:7px;padding:14px 16px;margin-bottom:18px}
-.sbox-label{font-size:11px;font-weight:700;color:var(--blue-tx);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
-.sbox textarea{width:100%;border:1px solid var(--blue-bd);border-radius:5px;padding:10px 12px;font-size:13.5px;font-family:Arial,sans-serif;line-height:1.6;color:var(--g900);background:#fff;resize:vertical;min-height:90px}
-.sbox textarea:focus{outline:none;border-color:var(--navy)}
-.field{margin-bottom:15px}
-.field label,.field-label{display:block;font-size:13px;font-weight:600;color:var(--g700);margin-bottom:5px}
-.field input,.field select,.field textarea{width:100%;border:1px solid var(--g300);border-radius:7px;padding:9px 12px;font-size:14px;font-family:Arial,sans-serif;color:var(--g900);background:#fff;transition:border-color .15s}
-.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(0,43,107,.1)}
+
+/* SCRIPT BOX */
+.sbox{background:rgba(79,138,255,.05);border:1px solid rgba(79,138,255,.2);border-radius:10px;padding:14px 16px;margin-bottom:18px}
+.sbox-label{font-size:10px;font-weight:700;color:var(--pri);display:block;margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em}
+.sbox textarea{width:100%;border:1px solid rgba(79,138,255,.2);border-radius:7px;padding:10px 12px;font-size:13.5px;font-family:inherit;line-height:1.6;color:var(--tx);background:rgba(0,0,0,.3);resize:vertical;min-height:90px;transition:border-color .2s}
+.sbox textarea:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-glow)}
+.sbox textarea::placeholder{color:var(--tx3)}
+
+/* FORM */
+.field{margin-bottom:16px}
+.field label,.field-label{display:block;font-size:10.5px;font-weight:700;color:var(--tx2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--inp-bd);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp);transition:all .2s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-glow);background:rgba(79,138,255,.05)}
+.field input::placeholder,.field textarea::placeholder{color:var(--tx3)}
+.field select option{background:#0a1628;color:var(--tx)}
 .field textarea{resize:vertical;min-height:70px;line-height:1.5}
-.field-hint{font-size:12px;color:var(--g500);margin-top:4px;line-height:1.4}
+.field-hint{font-size:11.5px;color:var(--tx3);margin-top:5px;line-height:1.4}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .field-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.num-card{border:1px solid var(--g200);border-radius:9px;padding:16px;margin-bottom:12px;background:var(--g50)}
-.num-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.num-card-label{font-size:13px;font-weight:700;color:var(--navy)}
+
+/* NUMBER CARDS */
+.num-card{border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:12px;background:rgba(255,255,255,.02);transition:border-color .2s}
+.num-card:hover{border-color:var(--bd-h)}
+.num-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.num-card-label{font-size:11px;font-weight:700;color:var(--pri);text-transform:uppercase;letter-spacing:.06em}
 .num-card-ctrls{display:flex;align-items:center;gap:8px}
-.num-type-sel{border:1px solid var(--g300);border-radius:6px;padding:5px 8px;font-size:12.5px;font-family:Arial,sans-serif;color:var(--g900);background:#fff}
-.tbl-wrap{overflow-x:auto;margin-bottom:12px;border-radius:8px;border:1px solid var(--g200)}
+.num-type-sel{border:1px solid var(--inp-bd);border-radius:6px;padding:5px 10px;font-size:12px;font-family:inherit;color:var(--tx);background:var(--inp)}
+.num-type-sel option{background:#0a1628}
+
+/* USERS TABLE */
+.tbl-wrap{overflow-x:auto;margin-bottom:12px;border-radius:10px;border:1px solid var(--bd)}
 .utbl{width:100%;border-collapse:collapse;font-size:12px;min-width:760px}
-.utbl th{background:var(--navy);color:#fff;padding:9px 7px;text-align:left;font-weight:600;font-size:10.5px}
-.utbl td{padding:5px 4px;border-bottom:1px solid var(--g200);vertical-align:middle}
+.utbl th{background:rgba(79,138,255,.08);color:var(--pri);padding:10px 8px;text-align:left;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--bd)}
+.utbl td{padding:6px 5px;border-bottom:1px solid rgba(100,150,255,.05);vertical-align:middle}
 .utbl tr:last-child td{border-bottom:none}
-.utbl tr:nth-child(even) td{background:var(--g50)}
-.utbl input,.utbl select{width:100%;border:1px solid var(--g300);border-radius:5px;padding:5px 6px;font-size:12px;font-family:Arial,sans-serif;background:#fff;color:var(--g900)}
-.utbl input:focus,.utbl select:focus{outline:none;border-color:var(--navy)}
-.ext-inp{width:54px!important;text-align:center;font-weight:700;color:var(--navy)}
-.pin-inp{width:60px!important;text-align:center;font-weight:600;color:var(--g700);font-family:monospace!important}
-.del-btn{background:none;border:none;color:var(--g300);cursor:pointer;font-size:18px;padding:2px 5px;line-height:1;transition:color .15s}
+.utbl tr:hover td{background:rgba(79,138,255,.03)}
+.utbl input,.utbl select{width:100%;border:1px solid rgba(100,150,255,.14);border-radius:6px;padding:5px 7px;font-size:12px;font-family:inherit;background:var(--inp);color:var(--tx)}
+.utbl input:focus,.utbl select:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 2px var(--pri-glow)}
+.utbl input::placeholder{color:var(--tx3)}
+.utbl select option{background:#0a1628}
+.ext-inp{width:52px!important;text-align:center;font-weight:700;color:var(--gold)!important;font-family:monospace!important}
+.pin-inp{width:58px!important;text-align:center;font-weight:600;color:var(--pri)!important;font-family:monospace!important}
+.del-btn{background:none;border:none;color:var(--tx3);cursor:pointer;font-size:18px;padding:2px 5px;line-height:1;transition:color .15s}
 .del-btn:hover{color:var(--red)}
-.add-row-btn{display:inline-flex;align-items:center;gap:6px;background:var(--g100);border:1.5px dashed var(--g300);border-radius:7px;padding:8px 16px;font-size:13px;color:var(--g700);cursor:pointer;font-weight:500;font-family:Arial,sans-serif;transition:all .15s;margin-top:6px}
-.add-row-btn:hover{background:var(--g200);border-color:var(--navy);color:var(--navy)}
-.rtbl{width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;border:1px solid var(--g200);margin-bottom:16px}
-.rtbl th{background:var(--navy);color:#fff;padding:10px 12px;text-align:left;font-size:12px;font-weight:600}
-.rtbl td{padding:8px 8px;border-bottom:1px solid var(--g200);vertical-align:middle}
+.add-row-btn{display:inline-flex;align-items:center;gap:6px;background:rgba(79,138,255,.06);border:1px dashed rgba(79,138,255,.22);border-radius:8px;padding:8px 18px;font-size:13px;color:var(--pri);cursor:pointer;font-weight:600;font-family:inherit;transition:all .15s;margin-top:6px}
+.add-row-btn:hover{background:rgba(79,138,255,.12);border-color:var(--pri)}
+
+/* ROUTING TABLE */
+.rtbl{width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid var(--bd);margin-bottom:16px}
+.rtbl th{background:rgba(79,138,255,.08);color:var(--pri);padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+.rtbl td{padding:8px 8px;border-bottom:1px solid rgba(100,150,255,.05);vertical-align:middle}
 .rtbl tr:last-child td{border-bottom:none}
-.rtbl tr:nth-child(even) td{background:var(--g50)}
-.opt-lbl{font-weight:600;font-size:13px;color:var(--g700);white-space:nowrap;padding-right:12px;width:175px}
-.rtbl input{width:100%;border:1px solid var(--g300);border-radius:5px;padding:7px 10px;font-size:13px;font-family:Arial,sans-serif;background:#fff}
-.rtbl input:focus{outline:none;border-color:var(--navy)}
+.opt-lbl{font-weight:700;font-size:12.5px;color:var(--tx2);white-space:nowrap;padding-right:12px;width:175px}
+.rtbl input{width:100%;border:1px solid var(--inp-bd);border-radius:6px;padding:7px 10px;font-size:13px;font-family:inherit;background:var(--inp);color:var(--tx)}
+.rtbl input:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 2px var(--pri-glow)}
+.rtbl input::placeholder{color:var(--tx3)}
+
+/* AFTER HOURS */
 .ah-opts{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
-.ah-opt{display:flex;align-items:center;gap:12px;padding:13px 16px;border:2px solid var(--g200);border-radius:9px;cursor:pointer;transition:all .15s}
-.ah-opt:hover{border-color:var(--navy)}.ah-opt.selected{border-color:var(--navy);background:#EFF6FF}
-.ah-opt input[type=radio]{accent-color:var(--navy)}.ah-opt-text{font-size:14px;font-weight:500}
+.ah-opt{display:flex;align-items:center;gap:12px;padding:13px 16px;border:1px solid var(--bd);border-radius:10px;cursor:pointer;transition:all .15s;background:rgba(255,255,255,.02)}
+.ah-opt:hover{border-color:var(--pri);background:rgba(79,138,255,.05)}
+.ah-opt.selected{border-color:var(--pri);background:rgba(79,138,255,.09);box-shadow:0 0 14px var(--pri-glow)}
+.ah-opt input[type=radio]{accent-color:var(--pri)}.ah-opt-text{font-size:14px;font-weight:500;color:var(--tx)}
 .cond{display:none}.cond.show{display:block}
-.voice-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
-.voice-card{border:2px solid var(--g200);border-radius:9px;padding:10px;cursor:pointer;transition:all .15s;text-align:center}
-.voice-card:hover{border-color:var(--navy);background:var(--g50)}.voice-card.selected{border-color:var(--navy);background:#EFF6FF}
-.voice-icon{font-size:22px;margin-bottom:4px}.voice-name{font-size:13px;font-weight:600;color:var(--g900)}
-.voice-gender{font-size:11px;color:var(--g500);margin-bottom:6px}
-.play-btn{display:inline-flex;align-items:center;gap:4px;background:var(--navy);color:#fff;border:none;border-radius:5px;padding:5px 10px;font-size:11.5px;cursor:pointer;font-family:Arial,sans-serif;font-weight:600;transition:background .15s}
-.play-btn:hover{background:var(--navy2)}.play-btn.playing{background:var(--green)}
+
+/* VOICE GRID */
+.voice-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.voice-card{border:1px solid var(--bd);border-radius:10px;padding:12px;cursor:pointer;transition:all .2s;text-align:center;background:rgba(255,255,255,.02)}
+.voice-card:hover{border-color:var(--pri);background:rgba(79,138,255,.06)}
+.voice-card.selected{border-color:var(--pri);background:rgba(79,138,255,.1);box-shadow:0 0 16px var(--pri-glow)}
+.voice-icon{font-size:22px;margin-bottom:5px}
+.voice-name{font-size:13px;font-weight:700;color:var(--tx)}
+.voice-gender{font-size:10px;color:var(--tx3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em}
+.play-btn{display:inline-flex;align-items:center;gap:4px;background:rgba(79,138,255,.12);color:var(--pri);border:1px solid rgba(79,138,255,.28);border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;transition:all .15s}
+.play-btn:hover{background:rgba(79,138,255,.22)}.play-btn.playing{background:rgba(0,229,160,.12);color:var(--green);border-color:rgba(0,229,160,.35)}
+
+/* SMS TOGGLE */
 .tog-wrap{display:flex;align-items:center;gap:12px;margin-bottom:18px}
 .tog{position:relative;width:44px;height:24px;flex-shrink:0}
 .tog input{opacity:0;width:0;height:0}
-.tog-sl{position:absolute;inset:0;background:var(--g300);border-radius:24px;cursor:pointer;transition:background .2s}
-.tog-sl::before{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;left:3px;top:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
-.tog input:checked+.tog-sl{background:var(--navy)}
-.tog input:checked+.tog-sl::before{transform:translateX(20px)}
-.tog-lbl{font-size:14px;font-weight:500;color:var(--g700)}
+.tog-sl{position:absolute;inset:0;background:rgba(255,255,255,.08);border:1px solid var(--bd);border-radius:24px;cursor:pointer;transition:all .2s}
+.tog-sl::before{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:var(--tx3);left:2px;top:2px;transition:all .2s}
+.tog input:checked+.tog-sl{background:rgba(79,138,255,.18);border-color:var(--pri)}
+.tog input:checked+.tog-sl::before{background:var(--pri);transform:translateX(20px);box-shadow:0 0 8px var(--pri-glow)}
+.tog-lbl{font-size:14px;font-weight:500;color:var(--tx)}
+
+/* USE CASES */
 .use-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
-.use-card{border:2px solid var(--g200);border-radius:9px;padding:13px 14px;cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:10px}
-.use-card:hover{border-color:var(--navy)}.use-card.selected{border-color:var(--navy);background:#EFF6FF}
-.use-card input[type=checkbox]{margin-top:2px;accent-color:var(--navy);flex-shrink:0;width:15px;height:15px}
-.use-card-title{font-size:13.5px;font-weight:600;color:var(--g900)}.use-card-desc{font-size:12px;color:var(--g500);margin-top:2px}
-.sample-area{width:100%;border:1px solid var(--g300);border-radius:7px;padding:8px 12px;font-size:13px;font-family:Arial,sans-serif;resize:vertical;margin-bottom:14px;line-height:1.5}
-.sample-area:focus{outline:none;border-color:var(--navy)}
-.divider{font-size:13px;font-weight:700;color:var(--navy);margin:22px 0 14px;display:flex;align-items:center;gap:10px}
-.divider::after{content:"";flex:1;height:1px;background:var(--g200)}
-.upload-zone{border:2px dashed var(--g300);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all .15s;position:relative;margin-bottom:8px}
-.upload-zone:hover{border-color:var(--navy);background:#EFF6FF}
+.use-card{border:1px solid var(--bd);border-radius:10px;padding:13px 14px;cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,.02)}
+.use-card:hover{border-color:var(--pri)}.use-card.selected{border-color:var(--pri);background:rgba(79,138,255,.08);box-shadow:0 0 10px var(--pri-glow)}
+.use-card input[type=checkbox]{margin-top:2px;accent-color:var(--pri);flex-shrink:0;width:15px;height:15px}
+.use-card-title{font-size:13.5px;font-weight:600;color:var(--tx)}.use-card-desc{font-size:12px;color:var(--tx3);margin-top:2px}
+.sample-area{width:100%;border:1px solid var(--inp-bd);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;resize:vertical;margin-bottom:14px;line-height:1.5;background:var(--inp);color:var(--tx)}
+.sample-area:focus{outline:none;border-color:var(--pri)}.sample-area::placeholder{color:var(--tx3)}
+
+/* DIVIDER */
+.divider{font-size:10px;font-weight:700;color:var(--pri);margin:22px 0 14px;display:flex;align-items:center;gap:10px;text-transform:uppercase;letter-spacing:.1em}
+.divider::after{content:"";flex:1;height:1px;background:var(--bd)}
+
+/* UPLOAD */
+.upload-zone{border:1.5px dashed rgba(79,138,255,.22);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .15s;position:relative;margin-bottom:8px;background:rgba(79,138,255,.02)}
+.upload-zone:hover{border-color:var(--pri);background:rgba(79,138,255,.06)}
 .upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.upload-zone-icon{font-size:28px;margin-bottom:6px}.upload-zone-text{font-size:13.5px;font-weight:600;color:var(--g700)}
-.upload-zone-hint{font-size:12px;color:var(--g500);margin-top:3px}
+.upload-zone-icon{font-size:28px;margin-bottom:6px}.upload-zone-text{font-size:13.5px;font-weight:600;color:var(--tx2)}
+.upload-zone-hint{font-size:12px;color:var(--tx3);margin-top:3px}
 .upload-files{list-style:none;margin-top:8px;display:flex;flex-direction:column;gap:6px}
-.upload-file{display:flex;align-items:center;gap:8px;background:var(--green-bg);border-radius:6px;padding:6px 10px;font-size:12.5px;color:#065f46}
-.sig-pad-wrap{border:1px solid var(--g300);border-radius:8px;background:#fff;margin-bottom:8px;overflow:hidden}
+.upload-file{display:flex;align-items:center;gap:8px;background:rgba(0,229,160,.07);border:1px solid rgba(0,229,160,.18);border-radius:6px;padding:6px 10px;font-size:12.5px;color:var(--green)}
+
+/* SIGNATURE PAD */
+.sig-pad-wrap{border:1px solid var(--bd);border-radius:10px;background:rgba(0,0,0,.35);margin-bottom:8px;overflow:hidden}
 .sig-canvas{width:100%;height:120px;cursor:crosshair;display:block;touch-action:none}
-.sig-bar{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:var(--g50);border-top:1px solid var(--g200);font-size:12px;color:var(--g500)}
-.sig-clear{background:none;border:1px solid var(--g300);border-radius:5px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--g700);font-family:Arial,sans-serif}
+.sig-bar{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:rgba(255,255,255,.02);border-top:1px solid var(--bd);font-size:11.5px;color:var(--tx3)}
+.sig-clear{background:none;border:1px solid var(--bd);border-radius:5px;padding:3px 10px;font-size:11.5px;cursor:pointer;color:var(--tx3);font-family:inherit;transition:all .15s}
 .sig-clear:hover{border-color:var(--red);color:var(--red)}
-.faq{border:1px solid var(--g200);border-radius:8px;margin-bottom:10px;overflow:hidden}
-.faq-q{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--g900);background:#fff}
-.faq-q:hover{background:var(--g50)}.faq-icon{font-size:20px;color:var(--g500);font-weight:300;transition:transform .2s}
-.faq-q.open .faq-icon{transform:rotate(45deg)}
-.faq-a{display:none;padding:12px 16px;font-size:13.5px;color:var(--g700);line-height:1.6;border-top:1px solid var(--g200);background:var(--g50)}
+
+/* FAQ */
+.faq{border:1px solid var(--bd);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.faq-q{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--tx);background:rgba(255,255,255,.02);transition:background .15s}
+.faq-q:hover{background:rgba(79,138,255,.05)}
+.faq-icon{font-size:20px;color:var(--tx3);font-weight:300;transition:transform .2s}
+.faq-q.open .faq-icon{transform:rotate(45deg);color:var(--pri)}
+.faq-a{display:none;padding:12px 16px;font-size:13.5px;color:var(--tx2);line-height:1.6;border-top:1px solid var(--bd);background:rgba(0,0,0,.2)}
 .faq-a.show{display:block}
-.loc-card{border:1px solid var(--g200);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--g50)}
+
+/* LOCATION CARDS */
+.loc-card{border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:10px;background:rgba(255,255,255,.02)}
 .loc-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.loc-lbl{font-size:13px;font-weight:700;color:var(--navy)}
+.loc-lbl{font-size:11px;font-weight:700;color:var(--pri);text-transform:uppercase;letter-spacing:.06em}
 .ext-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.ext-chip{display:inline-flex;align-items:center;gap:4px;background:var(--blue-bg);color:var(--blue-tx);border:1px solid var(--blue-bd);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
-.ext-chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
-.rv-section{margin-bottom:20px}
-.rv-title{font-size:11.5px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--g200)}
-.rv-row{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;font-size:13.5px;border-bottom:1px solid var(--g100);gap:16px}
+.ext-chip{display:inline-flex;align-items:center;gap:4px;background:rgba(79,138,255,.07);color:var(--tx2);border:1px solid rgba(79,138,255,.18);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;user-select:none}
+.ext-chip.on{background:rgba(79,138,255,.18);color:var(--pri);border-color:var(--pri);box-shadow:0 0 8px var(--pri-glow)}
+
+/* REVIEW */
+.rv-section{margin-bottom:22px}
+.rv-title{font-size:10px;font-weight:700;color:var(--pri);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--bd)}
+.rv-row{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;font-size:13.5px;border-bottom:1px solid rgba(100,150,255,.05);gap:16px}
 .rv-row:last-child{border-bottom:none}
-.rv-key{color:var(--g500);flex-shrink:0;min-width:160px}.rv-val{color:var(--g900);font-weight:500;text-align:right}
-.rv-tbl{width:100%;border-collapse:collapse;font-size:11.5px;border-radius:6px;overflow:hidden;border:1px solid var(--g200)}
-.rv-tbl th{background:var(--g100);padding:6px 8px;text-align:left;font-size:10px;color:var(--g500);text-transform:uppercase;letter-spacing:.4px}
-.rv-tbl td{padding:6px 8px;border-bottom:1px solid var(--g100);color:var(--g700)}
+.rv-key{color:var(--tx3);flex-shrink:0;min-width:160px}.rv-val{color:var(--tx);font-weight:500;text-align:right}
+.rv-tbl{width:100%;border-collapse:collapse;font-size:12px;border-radius:8px;overflow:hidden;border:1px solid var(--bd)}
+.rv-tbl th{background:rgba(79,138,255,.08);padding:7px 10px;text-align:left;font-size:10px;color:var(--pri);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+.rv-tbl td{padding:7px 10px;border-bottom:1px solid rgba(100,150,255,.05);color:var(--tx2)}
 .rv-tbl tr:last-child td{border-bottom:none}
-.rv-script{font-size:12px;color:var(--g700);white-space:pre-wrap;background:var(--g50);padding:10px 12px;border-radius:6px;width:100%;margin-top:4px;line-height:1.6}
-.export-box{background:var(--navy);border-radius:10px;padding:20px 24px;color:#fff;margin-bottom:16px}
-.export-box h3{font-size:16px;font-weight:700;margin-bottom:6px}
-.export-box p{font-size:13px;opacity:.8;margin-bottom:14px;line-height:1.5}
-.export-box input{width:100%;border:1px solid rgba(255,255,255,.3);border-radius:7px;padding:9px 12px;font-size:14px;font-family:Arial,sans-serif;color:#fff;background:rgba(255,255,255,.1);margin-bottom:12px}
-.export-box input::placeholder{color:rgba(255,255,255,.45)}
-.export-box input:focus{outline:none;border-color:rgba(255,255,255,.6)}
+.rv-script{font-size:12px;color:var(--tx2);white-space:pre-wrap;background:rgba(0,0,0,.3);padding:10px 12px;border-radius:7px;width:100%;margin-top:4px;line-height:1.6;font-family:monospace;border:1px solid var(--bd)}
+
+/* EXPORT BOX */
+.export-box{background:linear-gradient(135deg,rgba(0,43,107,.92),rgba(8,18,50,.92));border:1px solid rgba(79,138,255,.28);border-radius:14px;padding:22px 26px;color:#fff;margin-bottom:16px;box-shadow:0 0 32px rgba(79,138,255,.1)}
+.export-box h3{font-size:16px;font-weight:700;margin-bottom:6px;color:#fff}
+.export-box p{font-size:13px;color:rgba(161,182,247,.65);margin-bottom:14px;line-height:1.5}
+.export-box input{width:100%;border:1px solid rgba(79,138,255,.28);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;color:#fff;background:rgba(255,255,255,.07);margin-bottom:14px}
+.export-box input::placeholder{color:rgba(161,182,247,.35)}
+.export-box input:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-glow)}
 .export-btns{display:flex;flex-wrap:wrap;gap:10px}
-.btn-exp{display:inline-flex;align-items:center;gap:7px;background:#fff;color:var(--navy);border:none;border-radius:8px;padding:10px 18px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif;transition:all .15s}
-.btn-exp:hover{background:#eef2ff}
-.btn-pdf{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:8px;padding:10px 18px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:Arial,sans-serif;transition:all .15s}
-.btn-pdf:hover{background:rgba(255,255,255,.25)}
-.nav-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--g200);padding:13px 16px;z-index:100}
-.nav-inner{max-width:740px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
-.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:Arial,sans-serif}
-.btn-sec{background:var(--g100);color:var(--g700)}.btn-sec:hover{background:var(--g200)}
-.btn-pri{background:var(--navy);color:#fff}.btn-pri:hover{background:var(--navy2)}
-.btn-sub{background:var(--green);color:#fff;font-size:15px;padding:11px 28px}.btn-sub:hover{background:var(--green2)}
-.step-ct{font-size:13px;color:var(--g500)}
-.succ{text-align:center;padding:36px 20px}
-.succ-icon{width:72px;height:72px;background:var(--green-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:34px;color:var(--green)}
-.succ-h{font-size:24px;font-weight:700;color:var(--g900);margin-bottom:10px}
-.succ-body{font-size:15px;color:var(--g500);line-height:1.7;max-width:440px;margin:0 auto 24px}
-.succ-list{background:var(--green-bg);border-radius:10px;padding:16px 20px;max-width:380px;margin:0 auto 24px;text-align:left}
-.succ-list h4{font-size:13.5px;font-weight:600;color:var(--green);margin-bottom:8px}
-.succ-list ul{font-size:13px;color:var(--g700);line-height:2.1;padding-left:18px}
+.btn-exp{display:inline-flex;align-items:center;gap:7px;background:var(--gold);color:#000;border:none;border-radius:8px;padding:10px 20px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 0 18px var(--gold-glow)}
+.btn-exp:hover{background:#f0e820;box-shadow:0 0 26px var(--gold-glow)}
+.btn-pdf{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.07);color:rgba(161,182,247,.85);border:1px solid rgba(79,138,255,.28);border-radius:8px;padding:10px 20px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-pdf:hover{background:rgba(79,138,255,.15);border-color:var(--pri);color:#fff}
+
+/* NAV BAR */
+.nav-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(6,14,29,.96);backdrop-filter:blur(24px);border-top:1px solid var(--bd);padding:14px 20px;z-index:100}
+.nav-inner{max-width:760px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .2s;font-family:inherit;letter-spacing:.02em}
+.btn-sec{background:rgba(255,255,255,.05);color:var(--tx2);border:1px solid var(--bd)}
+.btn-sec:hover{background:rgba(255,255,255,.08);color:var(--tx)}
+.btn-pri{background:linear-gradient(135deg,var(--pri),var(--pri-dark));color:#fff;box-shadow:0 4px 18px var(--pri-glow)}
+.btn-pri:hover{box-shadow:0 4px 26px rgba(79,138,255,.5);transform:translateY(-1px)}
+.btn-sub{background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;font-size:15px;padding:11px 30px;box-shadow:0 4px 18px var(--green-glow)}
+.btn-sub:hover{box-shadow:0 4px 26px rgba(0,229,160,.4);transform:translateY(-1px)}
+.step-ct{font-size:12px;color:var(--tx3);letter-spacing:.04em}
+
+/* SUCCESS */
+.succ{text-align:center;padding:40px 20px}
+.succ-icon{width:80px;height:80px;background:rgba(0,229,160,.09);border:1px solid rgba(0,229,160,.28);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:36px;box-shadow:0 0 32px var(--green-glow)}
+.succ-h{font-size:26px;font-weight:700;color:var(--tx);margin-bottom:10px}
+.succ-body{font-size:15px;color:var(--tx2);line-height:1.7;max-width:440px;margin:0 auto 24px}
+.succ-list{background:rgba(0,229,160,.06);border:1px solid rgba(0,229,160,.18);border-radius:12px;padding:18px 22px;max-width:380px;margin:0 auto 24px;text-align:left}
+.succ-list h4{font-size:11px;font-weight:700;color:var(--green);margin-bottom:10px;text-transform:uppercase;letter-spacing:.08em}
+.succ-list ul{font-size:13.5px;color:var(--tx2);line-height:2.1;padding-left:18px}
+
 @media(max-width:640px){
   .field-row,.field-row3{grid-template-columns:1fr}
   .voice-grid{grid-template-columns:repeat(2,1fr)}
@@ -205,7 +270,7 @@ body{font-family:Arial,-apple-system,sans-serif;background:#EFF4F9;color:var(--g
 </div>
 <script>
 
-const VOICES = [{"name":"Ashley","gender":"Female","src":"audio/Ashley.wav"},{"name":"Ava","gender":"Female","src":"audio/Ava.mp3"},{"name":"Benjamin","gender":"Male","src":"audio/Benjamin.wav"},{"name":"Brandon","gender":"Male","src":"audio/Brandon.wav"},{"name":"Carmen","gender":"Female","src":"audio/Carmen.wav"},{"name":"David","gender":"Male","src":"audio/David.wav"},{"name":"Emily","gender":"Female","src":"audio/Emily.wav"},{"name":"Grace","gender":"Female","src":"audio/Grace.wav"},{"name":"Henry","gender":"Male","src":"audio/Henry.wav"},{"name":"Isobel","gender":"Female","src":"audio/Isobel.wav"},{"name":"James","gender":"Male","src":"audio/James.wav"},{"name":"Joe","gender":"Male","src":"audio/Joe.mp3"},{"name":"Judith","gender":"Female","src":"audio/Judith.wav"},{"name":"Leslie","gender":"Female","src":"audio/Leslie.wav"},{"name":"Oscar","gender":"Male","src":"audio/Oscar.wav"},{"name":"Wade","gender":"Male","src":"audio/Wade.mp3"}];
+const VOICES = [{"name": "Ashley", "gender": "Female", "src": "audio/Ashley.wav"}, {"name": "Ava", "gender": "Female", "src": "audio/Ava.mp3"}, {"name": "Benjamin", "gender": "Male", "src": "audio/Benjamin.wav"}, {"name": "Brandon", "gender": "Male", "src": "audio/Brandon.wav"}, {"name": "Carmen", "gender": "Female", "src": "audio/Carmen.wav"}, {"name": "David", "gender": "Male", "src": "audio/David.wav"}, {"name": "Emily", "gender": "Female", "src": "audio/Emily.wav"}, {"name": "Grace", "gender": "Female", "src": "audio/Grace.wav"}, {"name": "Henry", "gender": "Male", "src": "audio/Henry.wav"}, {"name": "Isobel", "gender": "Female", "src": "audio/Isobel.wav"}, {"name": "James", "gender": "Male", "src": "audio/James.wav"}, {"name": "Joe", "gender": "Male", "src": "audio/Joe.mp3"}, {"name": "Judith", "gender": "Female", "src": "audio/Judith.wav"}, {"name": "Leslie", "gender": "Female", "src": "audio/Leslie.wav"}, {"name": "Oscar", "gender": "Male", "src": "audio/Oscar.wav"}, {"name": "Wade", "gender": "Male", "src": "audio/Wade.mp3"}];
 const STEPS = ['Phone Numbers','Users & Extensions','Greetings & Call Flow','SMS & Messaging','Review & Submit'];
 const USE_CASES = [
   {id:'care',   label:'Customer Care',         desc:'Support, billing, account help',    sample:'Hi [Name], UNICOM Telecom following up on your request. Call [number] or reply here. Reply STOP to opt out.'},
@@ -249,7 +314,14 @@ const US_TZ = ['US/Eastern','US/Central','US/Mountain','US/Pacific','US/Alaska',
 const S = {
   step:0,
   companyName:'',contactFn:'',contactLn:'',contactEmail:'',contactPhone:'',timezone:'US/Eastern',
-  numbers:[{num:'',type:'port-local',carrier:'',authName:'',acctNum:'',state:'',primaryAC:'',backupAC:'',qty:1,vanity:false,vanityPattern:''}],
+  // What they want to do
+  portLocal:false, portTF:false, getNew:false,
+  // Local numbers
+  localNums:'', localCarrier:'', localAuthName:'', localAcctNum:'',
+  // Toll-free numbers
+  tfNums:'', tfCarrier:'', tfAuthName:'', tfAcctNum:'',
+  // New numbers
+  newState:'', newPrimaryAC:'', newBackupAC:'', newQty:1, newVanity:false, newVanityPattern:'',
   cnam:'',
   loaSignerFn:'',loaSignerLn:'',loaSigData:'',
   respContactName:'',respContactPhone:'',respStreet:'',respCity:'',respState:'',respZip:'',respCountry:'US',
@@ -292,17 +364,21 @@ function save(){
   if(s===0){
     S.companyName=gv('companyName');S.contactFn=gv('contactFn');S.contactLn=gv('contactLn');
     S.contactEmail=gv('contactEmail');S.contactPhone=gv('contactPhone');S.timezone=gv('timezone');
-    S.numbers=Array.from(document.querySelectorAll('.num-card')).map(function(c){
-      var t=c.querySelector('.num-type-sel').value,isN=t==='new',isP=!isN;
-      return {
-        num:isP?qv(c,'.nnum'):'',type:t,carrier:isP?qv(c,'.ncarr'):'',
-        authName:isP?qv(c,'.nauth'):'',acctNum:isP?qv(c,'.nacct'):'',
-        state:isN?qv(c,'.nstate'):'',primaryAC:isN?qv(c,'.npac'):'',
-        backupAC:isN?qv(c,'.nbac'):'',qty:isN?parseInt(qv(c,'.nqty'))||1:1,
-        vanity:isN?(c.querySelector('.nvanity')?c.querySelector('.nvanity').checked:false):false,
-        vanityPattern:isN?qv(c,'.nvanityp'):''
-      };
-    });
+    // What they want
+    var plEl=document.getElementById('portLocalChk'); if(plEl) S.portLocal=plEl.checked;
+    var ptEl=document.getElementById('portTFChk');    if(ptEl) S.portTF=ptEl.checked;
+    var gnEl=document.getElementById('getNewChk');    if(gnEl) S.getNew=gnEl.checked;
+    // Local nums
+    S.localNums=gv('localNums'); S.localCarrier=gv('localCarrier');
+    S.localAuthName=gv('localAuthName'); S.localAcctNum=gv('localAcctNum');
+    // TF nums
+    S.tfNums=gv('tfNums'); S.tfCarrier=gv('tfCarrier');
+    S.tfAuthName=gv('tfAuthName'); S.tfAcctNum=gv('tfAcctNum');
+    // New nums
+    S.newState=gv('newState'); S.newPrimaryAC=gv('newPrimaryAC');
+    S.newBackupAC=gv('newBackupAC'); S.newQty=parseInt(gv('newQty'))||1;
+    var nvEl=document.getElementById('newVanity'); if(nvEl) S.newVanity=nvEl.checked;
+    S.newVanityPattern=gv('newVanityPattern');
     S.cnam=gv('cnam');
     S.loaSignerFn=gv('loaSignerFn');S.loaSignerLn=gv('loaSignerLn');
     if(sigPads['loaSig'])S.loaSigData=sigPads['loaSig'].data();
@@ -375,12 +451,12 @@ function showIntro(){
   document.getElementById('navBar').style.display='none';
   document.getElementById('content').innerHTML='<div class="card" style="text-align:center;padding:36px 28px">'
     +'<div style="font-size:42px;margin-bottom:16px">\uD83C\uDF89</div>'
-    +'<h1 style="font-size:26px;font-weight:700;color:var(--navy);margin-bottom:10px">Welcome to UNICOM Telecom!</h1>'
-    +'<p style="font-size:16px;color:var(--g500);max-width:480px;margin:0 auto 28px;line-height:1.7">'
+    +'<h1 style="font-size:26px;font-weight:700;color:var(--pri);margin-bottom:10px">Welcome to UNICOM Telecom!</h1>'
+    +'<p style="font-size:16px;color:var(--tx2);max-width:480px;margin:0 auto 28px;line-height:1.7">'
     +'We\'re thrilled to have you on board. This short wizard walks you through everything we need to build your phone system \u2014 no technical experience required.'
     +'</p>'
-    +'<div style="background:var(--g50);border-radius:10px;padding:20px 24px;max-width:480px;margin:0 auto 28px;text-align:left">'
-    +'<div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px">What we\'ll cover \u2014 about 10\u201315 minutes</div>'
+    +'<div style="background:rgba(79,138,255,0.05);border-radius:10px;padding:20px 24px;max-width:480px;margin:0 auto 28px;text-align:left">'
+    +'<div style="font-size:13px;font-weight:700;color:var(--pri);margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px">What we\'ll cover \u2014 about 10\u201315 minutes</div>'
     +'<div style="display:flex;flex-direction:column;gap:12px">'
     +introStep('1','\uD83D\uDCDE','Phone Numbers','Tell us what numbers you\'d like \u2014 keep your existing ones or get new ones')
     +introStep('2','\uD83D\uDC65','Users &amp; Extensions','Add your team and their extensions')
@@ -394,28 +470,26 @@ function showIntro(){
     +'\u2022 Your team\'s names and email addresses<br>'
     +'\u2022 Your business address for E911 registration'
     +'</div>'
-    +'<p style="font-size:13.5px;color:var(--g500);max-width:440px;margin:0 auto 24px;line-height:1.6">'
+    +'<p style="font-size:13.5px;color:var(--tx2);max-width:440px;margin:0 auto 24px;line-height:1.6">'
     +'Once you submit, your dedicated UNICOM onboarding specialist will reach out within <strong>1 business day</strong> to schedule your installation and confirm your port date.'
     +'</p>'
     +'<button class="btn btn-pri" onclick="startWizard()" style="font-size:16px;padding:13px 36px">Let\'s get started \u2192</button>'
-    +'<p style="font-size:12px;color:var(--g300);margin-top:14px">You can save your progress at any time using the button in the top right.</p>'
+    +'<p style="font-size:12px;color:var(--tx3);margin-top:14px">You can save your progress at any time using the button in the top right.</p>'
     +'</div>';
 }
 function introStep(n,icon,title,desc){
   return '<div style="display:flex;align-items:flex-start;gap:12px">'
-    +'<div style="width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+n+'</div>'
-    +'<div><div style="font-size:14px;font-weight:600;color:var(--g900)">'+icon+' '+title+'</div>'
-    +'<div style="font-size:12.5px;color:var(--g500);margin-top:2px">'+desc+'</div></div></div>';
+    +'<div style="width:28px;height:28px;border-radius:50%;background:var(--pri);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+n+'</div>'
+    +'<div><div style="font-size:14px;font-weight:600;color:var(--tx)">'+icon+' '+title+'</div>'
+    +'<div style="font-size:12.5px;color:var(--tx2);margin-top:2px">'+desc+'</div></div></div>';
 }
 
 /* ===== STEP 1 ===== */
 function step1(){
-  var hl=S.numbers.some(function(n){return n.type==='port-local';}),
-      ht=S.numbers.some(function(n){return n.type==='port-tf';});
   var h='';
   // Account info card
   h+='<div class="card"><div class="card-title">Account Information</div>'
-    +'<div class="card-sub">Fills automatically into your porting forms. Enter exactly as it appears on your phone bill.</div>'
+    +'<div class="card-sub">This fills automatically into your porting forms. Enter it exactly as it appears on your phone bill.</div>'
     +'<div class="field-row">'
     +'<div class="field"><label>Company Name (legal)</label><input id="companyName" placeholder="As on your phone bill" value="'+e(S.companyName)+'"></div>'
     +'<div class="field"><label>Time Zone</label><select id="timezone">'
@@ -427,38 +501,98 @@ function step1(){
     +'<div class="field"><label>Contact Phone</label><input id="contactPhone" type="tel" placeholder="(555) 555-5555" value="'+e(S.contactPhone)+'"></div>'
     +'</div><div class="field"><label>Contact Email</label><input id="contactEmail" type="email" placeholder="contact@yourbusiness.com" value="'+e(S.contactEmail)+'"></div>'
     +'</div>';
-  // Numbers card
+
+  // What do you want card
   h+='<div class="card"><div class="card-title">Step 1 \u2014 Phone Numbers</div>'
-    +'<div class="card-sub">Tell us about each number you\'d like on your account.</div>'
-    +'<div class="ibox amber"><strong>&#128222; What is porting?</strong>'
-    +'Porting transfers your existing number to UNICOM so you keep the same number your customers know. '
-    +'Once we receive your info we\'ll schedule your <strong>port date</strong> and coordinate with your current carrier for a seamless cutover.</div>'
-    +'<div id="numCards">'+S.numbers.map(numCard).join('')+'</div>'
-    +'<button class="add-row-btn" onclick="addNum()">+ Add another number</button></div>';
-  // LOA
-  if(hl){
+    +'<div class="card-sub">Tell us what you\'d like to do with your phone numbers. You can select more than one.</div>'
+    +'<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">'
+    +numChoice('portLocalChk','portLocal','\uD83D\uDCDE Transfer my existing local numbers','Standard 10-digit numbers like (555) 555-5555')
+    +numChoice('portTFChk','portTF','\u2605 Transfer my toll-free numbers','800, 888, 877, 866, or 855 numbers')
+    +numChoice('getNewChk','getNew','\u2728 Get brand new numbers','We\'ll assign numbers in your preferred area code')
+    +'</div>'
+
+    // LOCAL
+    +(S.portLocal?
+        '<div style="border:2px solid var(--pri);border-radius:9px;padding:18px;margin-bottom:12px">'
+        +'<div style="font-size:14px;font-weight:700;color:var(--pri);margin-bottom:14px">\uD83D\uDCDE Local Numbers to Transfer</div>'
+        +'<div class="ibox amber"><strong>Have your phone bill ready.</strong>The information below must match your current carrier\'s records exactly.</div>'
+        +'<div class="field"><label>Your numbers to port <span style="font-weight:400;color:var(--tx2)">\u2014 paste them below, one per line</span></label>'
+        +'<textarea id="localNums" rows="5" style="width:100%;border:1px solid var(--g300);border-radius:7px;padding:10px 12px;font-size:14px;font-family:monospace;resize:vertical;line-height:1.8" placeholder="(555) 555-1001\n(555) 555-1002\n(555) 555-1003">'+e(S.localNums)+'</textarea>'
+        +'<div class="field-hint">Tip: you can paste a whole list at once \u2014 we\'ll read it. Or drag &amp; drop a .txt or .csv file. <label style="color:var(--pri);cursor:pointer;font-weight:600">Browse file<input type="file" accept=".txt,.csv,.xlsx" style="display:none" onchange="importNums(this,\'localNums\')"></label></div></div>'
+        +'<div class="field"><label>Current Carrier</label><input id="localCarrier" placeholder="e.g. AT&amp;T, Verizon, Spectrum, Comcast" value="'+e(S.localCarrier)+'"></div>'
+        +'<div class="field-row">'
+        +'<div class="field"><label>Name on Account <span style="font-weight:400;color:var(--tx2)">(as on your bill)</span></label><input id="localAuthName" placeholder="e.g. Acme Corp or John Smith" value="'+e(S.localAuthName)+'"></div>'
+        +'<div class="field"><label>Account Number</label><input id="localAcctNum" placeholder="Found on your phone bill" value="'+e(S.localAcctNum)+'"></div>'
+        +'</div></div>'
+      :'')
+
+    // TOLL-FREE
+    +(S.portTF?
+        '<div style="border:2px solid rgba(124,58,237,0.6);border-radius:9px;padding:18px;margin-bottom:12px">'
+        +'<div style="font-size:14px;font-weight:700;color:rgba(161,138,255,0.9);margin-bottom:14px">\u2605 Toll-Free Numbers to Transfer</div>'
+        +'<div class="field"><label>Your toll-free numbers <span style="font-weight:400;color:var(--tx2)">\u2014 one per line</span></label>'
+        +'<textarea id="tfNums" rows="4" style="width:100%;border:1px solid var(--g300);border-radius:7px;padding:10px 12px;font-size:14px;font-family:monospace;resize:vertical;line-height:1.8" placeholder="(800) 555-1234\n(888) 555-5678">'+e(S.tfNums)+'</textarea>'
+        +'<div class="field-hint">Paste a list or <label style="color:var(--pri);cursor:pointer;font-weight:600">browse a file<input type="file" accept=".txt,.csv" style="display:none" onchange="importNums(this,\'tfNums\')"></label></div></div>'
+        +'<div class="field"><label>Current Carrier</label><input id="tfCarrier" placeholder="e.g. AT&amp;T, Verizon" value="'+e(S.tfCarrier)+'"></div>'
+        +'<div class="field-row">'
+        +'<div class="field"><label>Name on Account</label><input id="tfAuthName" placeholder="As on your bill" value="'+e(S.tfAuthName)+'"></div>'
+        +'<div class="field"><label>Account Number</label><input id="tfAcctNum" placeholder="From your bill" value="'+e(S.tfAcctNum)+'"></div>'
+        +'</div></div>'
+      :'')
+
+    // NEW NUMBERS
+    +(S.getNew?
+        '<div style="border:2px solid rgba(0,229,160,0.5);border-radius:9px;padding:18px;margin-bottom:12px">'
+        +'<div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:14px">\u2728 New Numbers</div>'
+        +'<div class="field-row">'
+        +'<div class="field"><label>State</label><select id="newState" onchange="updNewACs()">'
+        +'<option value="">Select state\u2026</option>'
+        +US_STATES.map(function(s){return '<option value="'+s+'"'+(S.newState===s?' selected':'')+'>'+s+'</option>';}).join('')
+        +'</select></div>'
+        +'<div class="field"><label>Primary Area Code</label><select id="newPrimaryAC">'
+        +'<option value="">Choose\u2026</option>'
+        +((S.newState&&STATE_CODES[S.newState])?STATE_CODES[S.newState].map(function(a){return '<option value="'+a+'"'+(S.newPrimaryAC===a?' selected':'')+'>'+a+'</option>';}).join(''):'')
+        +'</select></div></div>'
+        +'<div class="field-row3">'
+        +'<div class="field"><label>Backup Area Code <span style="font-weight:400;color:var(--tx2)">(if primary unavailable)</span></label><select id="newBackupAC">'
+        +'<option value="">Choose\u2026</option>'
+        +((S.newState&&STATE_CODES[S.newState])?STATE_CODES[S.newState].map(function(a){return '<option value="'+a+'"'+(S.newBackupAC===a?' selected':'')+'>'+a+'</option>';}).join(''):'')
+        +'</select></div>'
+        +'<div class="field"><label>How many numbers?</label><input id="newQty" type="number" min="1" max="50" value="'+(S.newQty||1)+'" placeholder="1"></div>'
+        +'<div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="newVanity"'+(S.newVanity?' checked':'')+' onchange="updNewACs()" style="accent-color:var(--pri)"> Request vanity number</label>'
+        +'<div class="field-hint">Additional cost applies</div></div>'
+        +'</div>'
+        +(S.newVanity?'<div class="field"><label>Vanity pattern</label><input id="newVanityPattern" placeholder="e.g. 800-GET-HELP or 1-888-MY-BRAND" value="'+e(S.newVanityPattern||'')+'"></div>':'')
+        +'</div>'
+      :'')
+
+    +'</div>';
+
+  // LOA (local porting)
+  if(S.portLocal){
     h+='<div class="card"><div class="card-title">Letter of Authorization (LOA)</div>'
-      +'<div class="card-sub">Required to transfer your local numbers. Pre-filled from your account info above.</div>'
-      +'<div class="ibox red"><strong>&#9888;&#65039; All info must exactly match your current phone bill.</strong>'
-      +'One BTN per LOA. Do NOT include toll-free numbers here \u2014 use the Resporg section below for those.</div>'
+      +'<div class="card-sub">Authorizes UNICOM to request the transfer on your behalf. Your signature below is legally binding.</div>'
+      +'<div class="ibox amber"><strong>&#128221; A few things to know:</strong>'
+      +'The information here must match your current phone bill exactly. '
+      +'Please also upload a copy of your most recent bill below \u2014 carriers require it to verify account ownership.</div>'
       +'<div class="field-row">'
       +'<div class="field"><label>Authorized Signer \u2014 First Name</label><input id="loaSignerFn" value="'+e(S.loaSignerFn||S.contactFn)+'"></div>'
       +'<div class="field"><label>Authorized Signer \u2014 Last Name</label><input id="loaSignerLn" value="'+e(S.loaSignerLn||S.contactLn)+'"></div>'
       +'</div>'
       +'<div class="field-label">Draw your signature below</div>'
       +'<div class="sig-pad-wrap"><canvas class="sig-canvas" id="loaCvs" width="680" height="120"></canvas>'
-      +'<div class="sig-bar"><span>Mouse or finger</span><button class="sig-clear" onclick="clrSig(\'loaSig\',\'loaCvs\')">Clear</button></div></div>'
-      +'<div class="field" style="margin-top:12px"><div class="field-label">Upload most recent phone bill</div>'
+      +'<div class="sig-bar"><span>Use mouse or finger to sign</span><button class="sig-clear" onclick="clrSig(\'loaSig\',\'loaCvs\')">Clear</button></div></div>'
+      +'<div class="field" style="margin-top:12px"><div class="field-label">Upload your most recent phone bill</div>'
       +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'billList\')">'
       +'<div class="upload-zone-icon">&#128206;</div><div class="upload-zone-text">Click to upload or drag &amp; drop</div>'
       +'<div class="upload-zone-hint">PDF, JPG, or PNG \u2022 Most recent bill only</div></div>'
       +'<ul class="upload-files" id="billList"></ul></div></div>';
   }
-  // Resporg
-  if(ht){
-    var tfn=S.numbers.filter(function(n){return n.type==='port-tf';}).map(function(n){return n.num;}).filter(Boolean).join('\n');
+
+  // RESPORG (toll-free porting)
+  if(S.portTF){
     h+='<div class="card"><div class="card-title">Resporg \u2014 Toll-Free Porting</div>'
-      +'<div class="card-sub">Required for toll-free numbers. <strong>Resporg ID: WLS27</strong></div>'
+      +'<div class="card-sub">Authorizes UNICOM to act as the Responsible Organization for your toll-free numbers. <strong>Resporg ID: WLS27</strong></div>'
       +'<div class="ibox amber">The undersigned customer hereby appoints Unicom Telecom, Inc to act as its authorized agent for all matters pertaining to the 8YY services listed above. This authorization will expire upon written notification only.</div>'
       +'<div class="field-row"><div class="field"><label>Contact Name</label><input id="respContactName" value="'+e(S.respContactName||(S.contactFn+' '+S.contactLn).trim())+'"></div>'
       +'<div class="field"><label>Contact Phone</label><input id="respContactPhone" type="tel" value="'+e(S.respContactPhone||S.contactPhone)+'"></div></div>'
@@ -467,71 +601,59 @@ function step1(){
       +'<div class="field"><label>City</label><input id="respCity" value="'+e(S.respCity||S.e911City)+'"></div>'
       +'<div class="field"><label>State</label><input id="respState" value="'+e(S.respState||S.e911State)+'"></div>'
       +'<div class="field"><label>Zip</label><input id="respZip" value="'+e(S.respZip||S.e911Zip)+'"></div></div>'
-      +'<div class="field"><label>Toll-Free Numbers to Port (one per line)</label>'
-      +'<textarea id="respTFNs" rows="3" style="width:100%;border:1px solid var(--g300);border-radius:7px;padding:9px 12px;font-size:14px;font-family:Arial,sans-serif;resize:vertical">'+e(tfn)+'</textarea></div>'
       +'<div class="field-row3">'
       +'<div class="field"><label>Signer First Name</label><input id="respSignerFn" value="'+e(S.respSignerFn||S.contactFn)+'"></div>'
       +'<div class="field"><label>Signer Last Name</label><input id="respSignerLn" value="'+e(S.respSignerLn||S.contactLn)+'"></div>'
       +'<div class="field"><label>Title</label><input id="respTitle" value="'+e(S.respTitle)+'"></div></div>'
       +'<div class="field-label">Draw your signature below</div>'
       +'<div class="sig-pad-wrap"><canvas class="sig-canvas" id="respCvs" width="680" height="120"></canvas>'
-      +'<div class="sig-bar"><span>Mouse or finger</span><button class="sig-clear" onclick="clrSig(\'respSig\',\'respCvs\')">Clear</button></div></div>'
+      +'<div class="sig-bar"><span>Use mouse or finger to sign</span><button class="sig-clear" onclick="clrSig(\'respSig\',\'respCvs\')">Clear</button></div></div>'
       +'<div class="field" style="margin-top:12px"><div class="field-label">Current Invoice</div>'
       +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'respBillList\')">'
       +'<div class="upload-zone-icon">&#128206;</div><div class="upload-zone-text">Click to upload or drag &amp; drop</div>'
-      +'<div class="upload-zone-hint">Attach your current invoice for the port submission</div></div>'
+      +'<div class="upload-zone-hint">Attach your current invoice so we can submit it with the port</div></div>'
       +'<ul class="upload-files" id="respBillList"></ul></div></div>';
   }
+
   // E911
   h+='<div class="card"><div class="card-title">E911 Address</div>'
-    +'<div class="card-sub">Emergency services will be dispatched to this address when 911 is dialed from your system.</div>'
-    +'<div class="ibox amber"><strong>&#128658; E911 is required by law.</strong>If your team works from multiple locations, add them below and assign the right extensions to each address.</div>'
+    +'<div class="card-sub">Emergency services dispatch to this address when 911 is dialed from your system.</div>'
+    +'<div class="ibox amber"><strong>&#128658; Required by law.</strong>If your team works from multiple locations, add them below and assign the right extensions.</div>'
     +'<div class="field"><label>Street</label><input id="e911Street" placeholder="123 Main St" value="'+e(S.e911Street)+'"></div>'
     +'<div class="field-row3"><div class="field"><label>City</label><input id="e911City" placeholder="Springfield" value="'+e(S.e911City)+'"></div>'
     +'<div class="field"><label>State</label><input id="e911State" placeholder="NJ" maxlength="2" value="'+e(S.e911State)+'"></div>'
     +'<div class="field"><label>Zip</label><input id="e911Zip" placeholder="07081" value="'+e(S.e911Zip)+'"></div></div>'
     +'<div id="locCards">'+S.e911Locations.map(locCard).join('')+'</div>'
     +'<button class="add-row-btn" onclick="addLoc()">+ Add a second location</button></div>';
+
   // CNAM
-  h+='<div class="card"><div class="field"><label>Outbound Caller ID (CNAM)</label>'
+  h+='<div class="card"><div class="field"><label>Outbound Caller ID Name (CNAM)</label>'
     +'<input id="cnam" placeholder="e.g. UNICOM TELECOM (max 15 characters)" maxlength="15" value="'+e(S.cnam)+'">'
-    +'<div class="field-hint">What shows on the recipient\'s caller ID when you call them. Max 15 characters.</div></div></div>';
+    +'<div class="field-hint">What shows on the recipient\'s screen when you call them. Max 15 characters.</div></div></div>';
+
   return h;
 }
 
-function numCard(n,i){
-  var isN=n.type==='new',dis=isN?'':'',disA=!isN?'disabled style="background:#f9fafb;color:#9ca3af"':'';
-  var inner='';
-  if(isN){
-    var sOpts=US_STATES.map(function(s){return '<option value="'+s+'"'+(n.state===s?' selected':'')+'>'+s+'</option>';}).join('');
-    var acs=(n.state&&STATE_CODES[n.state])?STATE_CODES[n.state]:[];
-    var acO=acs.map(function(a){return '<option value="'+a+'"'+(n.primaryAC===a?' selected':'')+'>'+a+'</option>';}).join('');
-    var acO2=acs.map(function(a){return '<option value="'+a+'"'+(n.backupAC===a?' selected':'')+'>'+a+'</option>';}).join('');
-    inner='<div class="field-row"><div class="field"><label>State</label><select class="nstate" onchange="renum()">'
-      +'<option value="">Select state\u2026</option>'+sOpts+'</select></div>'
-      +'<div class="field"><label>Primary Area Code</label><select class="npac"><option value="">Choose\u2026</option>'+acO+'</select></div></div>'
-      +'<div class="field-row3"><div class="field"><label>Backup Area Code</label><select class="nbac"><option value="">Choose\u2026</option>'+acO2+'</select></div>'
-      +'<div class="field"><label>Quantity</label><input class="nqty" type="number" min="1" max="20" value="'+(n.qty||1)+'"></div>'
-      +'<div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer">'
-      +'<input type="checkbox" class="nvanity"'+(n.vanity?' checked':'')+' onchange="renum()" style="accent-color:var(--navy)"> Request vanity number</label>'
-      +'<div class="field-hint">Additional cost applies</div></div></div>'
-      +(n.vanity?'<div class="field"><label>Vanity pattern</label><input class="nvanityp" placeholder="e.g. 800-GET-HELP" value="'+e(n.vanityPattern||'')+'"></div>':'');
-  }else{
-    var carrierSyncAttr=isN?'':' oninput="syncCarrier(this)" onfocus="this.removeAttribute(\'data-edited\')" onchange="markEdited(this)"';
-    inner='<div class="field-row"><div class="field"><label>Phone Number</label><input class="nnum" type="tel" placeholder="(555) 555-5555" value="'+e(n.num||'')+'"></div>'
-      +'<div class="field"><label>Current Carrier</label>'
-      +'<input class="ncarr" placeholder="e.g. AT&amp;T, Verizon, Spectrum" value="'+e(n.carrier||'')+'" '+disA+carrierSyncAttr+'>'
-      +'<div class="field-hint" style="'+isN?'display:none':''+'">\uD83D\uDD04 Typing a carrier auto-fills it for all numbers \u2014 edit individually if needed</div>'
-      +'</div></div>'
-      +'<div class="field-row"><div class="field"><label>Name on Account <span style="font-weight:400;color:var(--g500)">(as on your bill)</span></label><input class="nauth" placeholder="e.g. Acme Corp or John Smith" value="'+e(n.authName||'')+'" '+disA+'></div>'
-      +'<div class="field"><label>Account Number</label><input class="nacct" placeholder="Found on your phone bill" value="'+e(n.acctNum||'')+'" '+disA+'></div></div>';
-  }
-  return '<div class="num-card"><div class="num-card-hdr"><span class="num-card-label">Number '+(i+1)+'</span>'
-    +'<div class="num-card-ctrls"><select class="num-type-sel" onchange="renum()">'
-    +'<option value="port-local"'+(n.type==='port-local'?' selected':'')+'>Port \u2013 Local</option>'
-    +'<option value="port-tf"'+(n.type==='port-tf'?' selected':'')+'>Port \u2013 Toll-free</option>'
-    +'<option value="new"'+(n.type==='new'?' selected':'')+'>New number</option>'
-    +'</select><button class="del-btn" onclick="delNum(this)">&times;</button></div></div>'+inner+'</div>';
+function numChoice(id, key, title, desc){
+  var checked=S[key];
+  return '<label style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid '+(checked?'var(--pri)':'var(--bd)')+';border-radius:9px;cursor:pointer;transition:all .15s;background:'+(checked?'rgba(79,138,255,0.1)':'#fff')+'" onclick="toggleNumType(\''+key+'\')">'
+    +'<input type="checkbox" id="'+id+'" style="width:18px;height:18px;accent-color:var(--pri);margin-top:2px;flex-shrink:0"'+(checked?' checked':'')+'>'
+    +'<div><div style="font-size:14px;font-weight:700;color:var(--tx)">'+title+'</div>'
+    +'<div style="font-size:12.5px;color:var(--tx2);margin-top:2px">'+desc+'</div></div>'
+    +'</label>';
+}
+function toggleNumType(key){save();S[key]=!S[key];document.getElementById('content').innerHTML=step1();bind();setTimeout(function(){if(document.getElementById('loaCvs'))initSig('loaSig','loaCvs',S.loaSigData);if(document.getElementById('respCvs'))initSig('respSig','respCvs',S.respSigData);},60);}
+function updNewACs(){save();document.getElementById('content').innerHTML=step1();bind();}
+function importNums(inp,targetId){
+  var ta=document.getElementById(targetId);if(!ta)return;
+  var f=inp.files[0];if(!f)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var txt=ev.target.result;
+    var nums=txt.split(/[\n,;\t\r]+/).map(function(s){return s.replace(/[^\d]/g,'');}).filter(function(s){return s.length>=10;}).map(function(s){var n=s.slice(-10);return '('+n.slice(0,3)+') '+n.slice(3,6)+'-'+n.slice(6);});
+    ta.value=(ta.value?ta.value+'\n':'')+nums.join('\n');
+  };
+  reader.readAsText(f);
 }
 function locCard(loc,i){
   var chips=S.users.map(function(u){
@@ -548,15 +670,7 @@ function locCard(loc,i){
     +'<div class="field-label">Assign extensions at this location:</div>'
     +'<div class="ext-chips">'+chips+'</div></div>';
 }
-function syncCarrier(inp){
-  var v=inp.value;
-  document.querySelectorAll('.ncarr').forEach(function(el){if(el!==inp&&!el.dataset.edited)el.value=v;});
-}
-function markEdited(inp){inp.dataset.edited='1';}
-function renum(){save();document.getElementById('content').innerHTML=step1();bind();setTimeout(function(){if(document.getElementById('loaCvs'))initSig('loaSig','loaCvs',S.loaSigData);if(document.getElementById('respCvs'))initSig('respSig','respCvs',S.respSigData);},60);}
-function addNum(){save();S.numbers.push({num:'',type:'port-local',carrier:'',authName:'',acctNum:'',state:'',primaryAC:'',backupAC:'',qty:1,vanity:false,vanityPattern:''});renum();}
-function delNum(btn){if(document.querySelectorAll('.num-card').length<=1)return;btn.closest('.num-card').remove();save();}
-function addLoc(){save();S.e911Locations.push({label:'',street:'',city:'',state:'',zip:'',extensions:[]});renum();}
+function addLoc(){save();S.e911Locations.push({label:'',street:'',city:'',state:'',zip:'',extensions:[]});document.getElementById('content').innerHTML=step1();bind();}
 function handleFile(inp,lid){var l=document.getElementById(lid);if(!l)return;l.innerHTML=Array.from(inp.files).map(function(f){return '<li class="upload-file">&#9989; '+f.name+' ('+(f.size/1024).toFixed(0)+'KB)</li>';}).join('');}
 
 /* ===== STEP 2 ===== */
@@ -682,7 +796,7 @@ function step4(){
     +'<div class="field"><label>Contact phone</label><input id="brandPhone" type="tel" placeholder="(555) 555-5555" value="'+e(S.brandPhone)+'"></div></div>'
     +'<div class="field"><label>Business website</label><input id="brandWebsite" type="url" placeholder="https://www.yourbusiness.com" value="'+e(S.brandWebsite)+'">'
     +'<div class="field-hint">Must include SMS compliance section (opt-in/opt-out + privacy policy). We\'ll send you a template.</div></div></div>'
-    +'<div id="smsOff"'+(S.smsOn?' style="display:none"':'')+' style="text-align:center;padding:28px 20px;color:var(--g500)">'
+    +'<div id="smsOff"'+(S.smsOn?' style="display:none"':'')+' style="text-align:center;padding:28px 20px;color:var(--tx2)">'
     +'<div style="font-size:36px;margin-bottom:10px">\uD83D\uDCAC</div><div style="font-size:14px">SMS is turned off. You can always enable it later.</div></div></div>';
 }
 function fq(q,a){return '<div class="faq"><div class="faq-q" onclick="this.classList.toggle(\'open\');this.nextElementSibling.classList.toggle(\'show\')">'+q+'<span class="faq-icon">+</span></div><div class="faq-a">'+a+'</div></div>';}
@@ -700,7 +814,7 @@ function rebuildUseGrid(){
 
 /* ===== STEP 5 ===== */
 function step5(){
-  var hl=S.numbers.some(function(n){return n.type==='port-local';}),ht=S.numbers.some(function(n){return n.type==='port-tf';});
+  var hl=S.portLocal,ht=S.portTF;
   var ahLbl={'voicemail':'Go to voicemail','forward':'Forward to '+(S.ahFwd||'\u2014'),'other':S.ahOther||'\u2014'}[S.ahOpt]||'\u2014';
   var nR=S.numbers.map(function(n){
     var tl={'port-local':'Port \u2013 Local','port-tf':'Port \u2013 Toll-free','new':'New number'}[n.type]||n.type;
@@ -711,7 +825,7 @@ function step5(){
     return '<tr><td>'+e([u.fn,u.ln].filter(Boolean).join(' ')||'\u2014')+'</td>'
       +'<td style="font-size:11px">'+e(u.email||'\u2014')+'</td><td>'+e(u.ext)+'</td><td>'+e(u.dev)+'</td>'
       +'<td style="font-size:11px">'+e(u.model||'\u2014')+'</td>'
-      +'<td style="font-size:11px;color:var(--g500)">'+e(u.mac||(u.dev==='App'?'N/A':'\u2014'))+'</td>'
+      +'<td style="font-size:11px;color:var(--tx2)">'+e(u.mac||(u.dev==='App'?'N/A':'\u2014'))+'</td>'
       +'<td>'+({'both':'Both','email':'Email','mailbox':'Mailbox'}[u.vmailPref]||'Both')+'</td>'
       +'<td style="font-family:monospace;font-size:12px">'+e(u.pin||'1357')+'</td></tr>';
   }).join('');
@@ -744,15 +858,15 @@ function step5(){
     +'<input id="ssDomain" placeholder="e.g. COMPANYNAME.23699.service" value="'+e(S.ssDomain)+'">'
     +'<div class="export-btns">'
     +'<button class="btn-exp" onclick="dlCSV()">&#11015;&#65039; Download Users CSV</button>'
-    +(hl?'<button class="btn-pdf" onclick="genLOA()">&#128196; Download LOA PDF</button>':'')
-    +(ht?'<button class="btn-pdf" onclick="genResp()">&#128196; Download Resporg PDF</button>':'')
+    +(S.portLocal?'<button class="btn-pdf" onclick="genLOA()">&#128196; Download LOA PDF</button>':'')
+    +(S.portTF?'<button class="btn-pdf" onclick="genResp()">&#128196; Download Resporg PDF</button>':'')
     +'</div></div>';
 }
 
 /* ===== SUCCESS ===== */
 function showSuccess(){
   submitData();
-  var hl=S.numbers.some(function(n){return n.type==='port-local';}),ht=S.numbers.some(function(n){return n.type==='port-tf';});
+  var hl=S.portLocal,ht=S.portTF;
   document.getElementById('navBar').style.display='none';
   document.getElementById('content').innerHTML='<div class="card"><div class="succ">'
     +'<div class="succ-icon">\u2713</div><div class="succ-h">You\'re all set!</div>'
@@ -763,7 +877,7 @@ function showSuccess(){
     +'<li>We schedule your port date &amp; go-live call</li>'
     +'<li>We build your phone system in advance</li>'
     +'<li>On port day \u2014 you\'re live! \uD83C\uDF89</li></ul></div>'
-    +'<p style="font-size:13px;color:var(--g500);margin-bottom:16px">Questions? Email <a href="mailto:onboarding@unicomtelecom.com" style="color:var(--navy)">onboarding@unicomtelecom.com</a></p>'
+    +'<p style="font-size:13px;color:var(--tx2);margin-bottom:16px">Questions? Email <a href="mailto:onboarding@unicomtelecom.com" style="color:var(--pri)">onboarding@unicomtelecom.com</a></p>'
     +((hl||ht)?'<div style="background:var(--amber-bg);border-radius:8px;padding:14px 16px;max-width:420px;margin:0 auto;font-size:13px;color:var(--amber-tx);text-align:left">'
     +'<strong>&#128206; Please email your signed LOA'+(ht?' and Resporg':'')+'PDF'+(ht?'s':'')+' to:</strong><br>'
     +'customerservice@unicomtelecom.com<br>liz@unicomtelecom.com<br>yaeli@unicomtelecom.com</div>':'')
@@ -797,8 +911,9 @@ function genLOA(){
   if(typeof window.jspdf==='undefined'){alert('PDF library not loaded. Check your connection.');return;}
   var doc=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
   var today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
-  var lns=S.numbers.filter(function(n){return n.type==='port-local';});
-  var btn=lns[0]?lns[0].num:'';
+  // Parse local numbers from textarea
+  var localNumList=(S.localNums||'').split(/[\n,;]+/).map(function(s){return s.trim();}).filter(function(s){return s.replace(/\D/g,'').length>=10;});
+  var btn=localNumList[0]||'';
   doc.setFillColor(0,43,107);doc.rect(0,0,216,22,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
   doc.text('UNICOM TELECOM',108,10,{align:'center'});
@@ -807,16 +922,11 @@ function genLOA(){
   doc.setTextColor(0,0,0);
   var y=30;
   doc.setFontSize(8.5);
-  var pre='For each of the telephone numbers listed herein and on Attachment A, I appoint Unicom Telecom, Inc to act as my Agent for the purpose of collecting my account information with my current local telephone carrier or provider (hereinafter "Provider"). By selecting Unicom Telecom, Inc to act as my Agent to research my current services with my current Provider of local telephone service, I am authorizing the change of my local telephone Provider from that/those which I am currently using to Unicom Telecom, Inc. This authorization will expire with written notification only.';
+  var pre='For each of the telephone numbers listed herein, I appoint Unicom Telecom, Inc to act as my Agent for the purpose of collecting my account information with my current local telephone carrier or provider (hereinafter "Provider"). By selecting Unicom Telecom, Inc to act as my Agent to research my current services with my current Provider of local telephone service, I am authorizing the change of my local telephone Provider from that/those which I am currently using to Unicom Telecom, Inc. This authorization will expire with written notification only.';
   var sp=doc.splitTextToSize(pre,180);doc.text(sp,15,y);y+=sp.length*3.8+4;
   doc.setTextColor(180,0,0);doc.setFont('helvetica','bold');
-  doc.text('1. All information on this form MUST be typed and NOT handwritten',15,y);y+=5;
+  doc.text('IMPORTANT: All information must match your current carrier invoice exactly.',15,y,{maxWidth:180});y+=7;
   doc.setTextColor(0,0,0);doc.setFont('helvetica','normal');
-  doc.text('2. Only one (1) BTN per LOA. Submit a separate LOA for each additional BTN.',15,y,{maxWidth:180});y+=7;
-  doc.setTextColor(180,0,0);doc.text('3. Information on this LOA MUST match the attached losing carrier invoice.',15,y,{maxWidth:180});y+=6;
-  doc.setTextColor(0,0,0);doc.text('4. Use Attachment A for listing all telephone numbers associated with this BTN.',15,y);y+=7;
-  doc.setTextColor(180,0,0);doc.setFont('helvetica','bold');
-  doc.text('This information MUST match your current invoice and account information',15,y);y+=7;
   doc.setTextColor(0,0,0);doc.setFont('helvetica','bold');doc.setFontSize(10);
   doc.text('Company Information (as appears on your current phone bill)',15,y);y+=6;
   doc.setFont('helvetica','normal');doc.setFontSize(9);
@@ -847,7 +957,7 @@ function genResp(){
   if(typeof window.jspdf==='undefined'){alert('PDF library not loaded.');return;}
   var doc=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
   var today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
-  var tfn=S.numbers.filter(function(n){return n.type==='port-tf';}).map(function(n){return n.num;}).filter(Boolean);
+  var tfn=(S.tfNums||'').split(/[\n,;]+/).map(function(s){return s.trim();}).filter(function(s){return s.replace(/\D/g,'').length>=10;});
   doc.setFillColor(0,43,107);doc.rect(0,0,216,22,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
   doc.text('UNICOM TELECOM',108,10,{align:'center'});
