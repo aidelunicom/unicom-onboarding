@@ -467,9 +467,15 @@ function render(){
   document.getElementById('stepCt').textContent='Step '+(S.step+1)+' of '+STEPS.length;
   document.getElementById('btnBack').style.visibility=S.step===0?'hidden':'visible';
   var nb=document.getElementById('btnNext');
-  if(S.step===STEPS.length-1){nb.textContent='Submit \u2713';nb.className='btn btn-sub';}
-  else{nb.textContent='Continue \u2192';nb.className='btn btn-pri';}
-  document.getElementById('content').innerHTML=[step1,step2,step3,step4,step5][S.step]();
+  if(S.step===STEPS.length-1){nb.textContent='Submit ✓';nb.className='btn btn-sub';}
+  else{nb.textContent='Continue →';nb.className='btn btn-pri';}
+  var fns=[step1,step2,step3,step4,step5];
+  try{
+    document.getElementById('content').innerHTML=fns[S.step]();
+  }catch(err){
+    console.error('Step '+(S.step+1)+' render error:',err.message,err);
+    document.getElementById('content').innerHTML='<div class="card" style="border-color:var(--red)"><div class="card-title" style="color:var(--red)">&#9888; Error loading this step</div><p style="color:var(--tx2);font-size:13px;margin-top:8px">Please contact UNICOM support. Error: '+String(err.message).replace(/</g,'&lt;')+'</p></div>';
+  }
   bind();
   setTimeout(function(){
     if(document.getElementById('loaCvs'))initSig('loaSig','loaCvs',S.loaSigData);
@@ -1173,9 +1179,16 @@ function step5(){
     +'<div class="rv-row"><span class="rv-key">Voice</span><span class="rv-val">'+e(S.voice)+'</span></div>'
     +S.callFlow.map(function(cf){
       var kl=CF_KEYS.find(function(k){return k.v===cf.key;});var kn=kl?kl.l:cf.key;
-      var dl=CF_DEST.find(function(d){return d.v===cf.destType;});var dn=dl?dl.l:'';
-      var detail=cf.destType==='ring'?(cf.groupName?cf.groupName+' — ':'')+cf.extensions.join(', ')+(cf.ringType==='sim'?' (sim)':' (seq)'):cf.destType==='ext'?'Ext '+cf.singleExt:cf.destType==='vm'?'VM – Ext '+cf.vmExt:cf.destType==='external'?cf.extNum:cf.subNote||dn;
-      return '<div class="rv-row"><span class="rv-key">'+(cf.label?e(cf.label)+' ('+kn+')':kn)+'</span><span class="rv-val">'+dn+(detail?' – '+e(detail):'')+'</span></div>';
+      var destLbl='';
+      if(cf.dest){
+        if(cf.dest.startsWith('rg:')){var rg=(S.ringGroups||[]).find(function(r){return r.id===cf.dest.replace('rg:','');});destLbl=rg?e(rg.name):'Ring Group';}
+        else if(cf.dest.startsWith('ext:')){var uExt=(S.users||[]).find(function(x){return x.ext===cf.dest.replace('ext:','');});destLbl=uExt?(e(uExt.fn||'')+(uExt.fn?' (Ext '+uExt.ext+')':'Ext '+uExt.ext)):'Extension';}
+        else if(cf.dest.startsWith('vmshared:')){var vmS=(S.sharedVmails||[]).find(function(v){return v.id===cf.dest.replace('vmshared:','');});destLbl=vmS?e(vmS.name)+' (shared voicemail)':'Shared Voicemail';}
+        else if(cf.dest.startsWith('vmext:')){var uVm=(S.users||[]).find(function(x){return x.ext===cf.dest.replace('vmext:','');});destLbl=uVm?(e(uVm.fn||'Ext '+uVm.ext)+' voicemail'):'Voicemail';}
+        else if(cf.dest==='hours:'){destLbl='Hours & Location';}
+        else if(cf.dest.startsWith('external:')){destLbl='External: '+e(cf.dest.replace('external:',''));}
+      }
+      return '<div class="rv-row"><span class="rv-key">'+(cf.label?e(cf.label)+' ('+kn+')':kn)+'</span><span class="rv-val">'+(destLbl||'—')+'</span></div>';
     }).join('')
     +((S.ringGroups&&S.ringGroups.length)?'<div class="rv-row" style="flex-direction:column;align-items:flex-start;gap:5px"><span class="rv-key">Ring Groups</span>'
       +S.ringGroups.map(function(rg){return '<div style="font-size:12px;color:var(--tx2)"><strong>'+e(rg.name||'Unnamed')+'</strong>: '+(rg.members||[]).join(', ')+' &bull; '+(rg.ringType==='sim'?'all at once':'one at a time')+' &bull; '+rg.ringDuration+'s</div>';}).join('')
