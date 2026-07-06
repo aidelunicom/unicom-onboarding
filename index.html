@@ -169,7 +169,7 @@ body::after{content:'';position:fixed;top:-40%;left:-15%;width:55%;height:55%;ba
 .upload-file{display:flex;align-items:center;gap:8px;background:rgba(0,229,160,.07);border:1px solid rgba(0,229,160,.18);border-radius:6px;padding:6px 10px;font-size:12.5px;color:var(--green)}
 
 /* SIGNATURE PAD */
-.sig-pad-wrap{border:1px solid var(--bd);border-radius:10px;background:rgba(0,0,0,.35);margin-bottom:8px;overflow:hidden}
+.sig-pad-wrap{border:1px solid rgba(79,138,255,0.35);border-radius:10px;background:rgba(4,10,28,0.9);margin-bottom:8px;overflow:hidden}
 .sig-canvas{width:100%;height:120px;cursor:crosshair;display:block;touch-action:none}
 .sig-bar{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:rgba(255,255,255,.02);border-top:1px solid var(--bd);font-size:11.5px;color:var(--tx3)}
 .sig-clear{background:none;border:1px solid var(--bd);border-radius:5px;padding:3px 10px;font-size:11.5px;cursor:pointer;color:var(--tx3);font-family:inherit;transition:all .15s}
@@ -538,7 +538,7 @@ function step1(){
   h+='<div class="card"><div class="card-title">Account Information</div>'
     +'<div class="card-sub">A few basics to get started. If you\'re transferring an existing number, enter your company name exactly as it appears on your current phone bill.</div>'
     +'<div class="field-row">'
-    +'<div class="field"><label>Company Name (legal)</label><input id="companyName" placeholder="As on your phone bill" value="'+e(S.companyName)+'"></div>'
+    +'<div class="field"><label>Company Name (legal)</label><input id="companyName" placeholder="As on your phone bill" oninput="autoPopCNAM(this)" value="'+e(S.companyName)+'"></div>'
     +'<div class="field"><label>Time Zone</label><select id="timezone">'
     +US_TZ.map(function(z){return '<option value="'+z+'"'+(S.timezone===z?' selected':'')+'>'+z+'</option>';}).join('')
     +'</select></div></div>'
@@ -677,7 +677,7 @@ function step1(){
 
   // CNAM
   h+='<div class="card"><div class="field"><label>Your Caller ID Name</label>'
-    +'<input id="cnam" placeholder="e.g. UNICOM TELECOM (max 15 characters)" maxlength="15" value="'+e(S.cnam)+'">'
+    +'<input id="cnam" placeholder="e.g. UNICOM TELECOM (max 15 characters)" maxlength="15" oninput="this.dataset.edited=1;updateScriptPlaceholder(this.value.toUpperCase())" value="'+e(S.cnam)+'">'
     +'<div class="field-hint">This is your business name as it appears on someone\'s phone when you call them. Max 15 characters.</div></div></div>';
 
   return h;
@@ -914,6 +914,8 @@ function renderCFRow(cf,i){
 function step3(){
   initCFDefaults();
 
+  var _cn=S.cnam||(S.companyName||'').substring(0,15).toUpperCase();
+  if(_cn){['mainScript','afterScript','hoursScript'].forEach(function(k){if(S[k]&&S[k].indexOf('[Company Name]')>=0)S[k]=S[k].replace(/\[Company Name\]/g,_cn);});}
   var scripts='<div class="card"><div class="card-title">Your Greeting Scripts</div>'
     +'<div class="card-sub">Edit these to match your business. Replace anything in [brackets] with your real information.</div>'
     +'<div class="divider">Main Greeting</div>'
@@ -1339,7 +1341,7 @@ function initSig(id,cid,existing){
   var c=document.getElementById(cid);if(!c)return;
   var ctx=c.getContext('2d'),w=c.offsetWidth||680;
   c.width=w;c.height=120;
-  ctx.strokeStyle='#111';ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.strokeStyle='#e8eeff';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
   if(existing&&existing.length>100){var img=new Image();img.onload=function(){ctx.drawImage(img,0,0,w,120);};img.src=existing;}
   var dwg=false;
   function pt(ev){var r=c.getBoundingClientRect(),src=ev.touches?ev.touches[0]:ev;return {x:(src.clientX-r.left)*(c.width/r.width),y:(src.clientY-r.top)*(c.height/r.height)};}
@@ -1369,6 +1371,20 @@ function bind(){
 
 /* ===== UTIL ===== */
 function e(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function autoPopCNAM(inp){
+  var cn=document.getElementById('cnam');if(!cn||cn.dataset.edited)return;
+  var v=(inp.value||'').trim().substring(0,15).toUpperCase();
+  cn.value=v;S.cnam=v;
+  updateScriptPlaceholder(v);
+}
+function updateScriptPlaceholder(name){
+  if(!name)return;
+  ['mainScript','afterScript','hoursScript'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el&&el.value.indexOf('[Company Name]')>=0)el.value=el.value.replace(/\[Company Name\]/g,name);
+    if(S[id]&&S[id].indexOf('[Company Name]')>=0)S[id]=S[id].replace(/\[Company Name\]/g,name);
+  });
+}
 
 loadFromHash();
 render();
