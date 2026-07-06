@@ -304,6 +304,8 @@ body::after{content:'';position:fixed;top:-40%;left:-15%;width:55%;height:55%;ba
   </div>
 </div>
 <script>
+const VOICES = [{"name": "Ashley", "gender": "Female", "src": "audio/Ashley.wav"}, {"name": "Ava", "gender": "Female", "src": "audio/Ava.mp3"}, {"name": "Benjamin", "gender": "Male", "src": "audio/Benjamin.wav"}, {"name": "Brandon", "gender": "Male", "src": "audio/Brandon.wav"}, {"name": "Carmen", "gender": "Female", "src": "audio/Carmen.wav"}, {"name": "David", "gender": "Male", "src": "audio/David.wav"}, {"name": "Emily", "gender": "Female", "src": "audio/Emily.wav"}, {"name": "Grace", "gender": "Female", "src": "audio/Grace.wav"}, {"name": "Henry", "gender": "Male", "src": "audio/Henry.wav"}, {"name": "Isobel", "gender": "Female", "src": "audio/Isobel.wav"}, {"name": "James", "gender": "Male", "src": "audio/James.wav"}, {"name": "Joe", "gender": "Male", "src": "audio/Joe.mp3"}, {"name": "Judith", "gender": "Female", "src": "audio/Judith.wav"}, {"name": "Leslie", "gender": "Female", "src": "audio/Leslie.wav"}, {"name": "Oscar", "gender": "Male", "src": "audio/Oscar.wav"}, {"name": "Wade", "gender": "Male", "src": "audio/Wade.mp3"}];
+
 const STEPS = ['Phone Numbers','Your Team','Call Setup','Text Messaging','Review & Submit'];
 const USE_CASES = [
   {id:'care',   label:'Customer Care',         desc:'Support, billing, account help',    sample:'Hi [Name], UNICOM Telecom following up on your request. Call [number] or reply here. Reply STOP to opt out.'},
