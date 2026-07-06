@@ -244,6 +244,20 @@ body::after{content:'';position:fixed;top:-40%;left:-15%;width:55%;height:55%;ba
   .use-grid{grid-template-columns:1fr}
   .prog-label{display:none}.card{padding:18px}
 }
+
+/* CALL FLOW */
+.cf-row{border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:12px;background:rgba(79,138,255,0.03);transition:border-color .2s}
+.cf-row:hover{border-color:var(--bd-h)}
+.cf-row-hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0;flex-wrap:wrap}
+.cf-row-hdr select,.cf-row-hdr input{border:1px solid var(--inp-bd);border-radius:7px;padding:8px 12px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp);min-width:0}
+.cf-row-hdr select:focus,.cf-row-hdr input:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 2px var(--pri-glow)}
+.cf-row-hdr select option{background:#0a1628}
+.cf-key{width:150px;flex-shrink:0}
+.cf-dest{width:180px;flex-shrink:0}
+.cf-detail{margin-top:14px;padding-top:14px;border-top:1px solid var(--bd)}
+.cf-ring-btn{background:rgba(255,255,255,0.05);border:1px solid var(--bd);border-radius:7px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--tx2);cursor:pointer;font-family:inherit;transition:all .2s}
+.cf-ring-btn:hover{border-color:var(--pri);color:var(--pri)}
+.cf-ring-btn.active{background:rgba(79,138,255,0.15);border-color:var(--pri);color:var(--pri);box-shadow:0 0 10px var(--pri-glow)}
 </style>
 </head>
 <body>
@@ -271,7 +285,7 @@ body::after{content:'';position:fixed;top:-40%;left:-15%;width:55%;height:55%;ba
 <script>
 
 const VOICES = [{"name": "Ashley", "gender": "Female", "src": "audio/Ashley.wav"}, {"name": "Ava", "gender": "Female", "src": "audio/Ava.mp3"}, {"name": "Benjamin", "gender": "Male", "src": "audio/Benjamin.wav"}, {"name": "Brandon", "gender": "Male", "src": "audio/Brandon.wav"}, {"name": "Carmen", "gender": "Female", "src": "audio/Carmen.wav"}, {"name": "David", "gender": "Male", "src": "audio/David.wav"}, {"name": "Emily", "gender": "Female", "src": "audio/Emily.wav"}, {"name": "Grace", "gender": "Female", "src": "audio/Grace.wav"}, {"name": "Henry", "gender": "Male", "src": "audio/Henry.wav"}, {"name": "Isobel", "gender": "Female", "src": "audio/Isobel.wav"}, {"name": "James", "gender": "Male", "src": "audio/James.wav"}, {"name": "Joe", "gender": "Male", "src": "audio/Joe.mp3"}, {"name": "Judith", "gender": "Female", "src": "audio/Judith.wav"}, {"name": "Leslie", "gender": "Female", "src": "audio/Leslie.wav"}, {"name": "Oscar", "gender": "Male", "src": "audio/Oscar.wav"}, {"name": "Wade", "gender": "Male", "src": "audio/Wade.mp3"}];
-const STEPS = ['Phone Numbers','Users & Extensions','Greetings & Call Flow','SMS & Messaging','Review & Submit'];
+const STEPS = ['Phone Numbers','Your Team','Call Setup','Text Messaging','Review & Submit'];
 const USE_CASES = [
   {id:'care',   label:'Customer Care',         desc:'Support, billing, account help',    sample:'Hi [Name], UNICOM Telecom following up on your request. Call [number] or reply here. Reply STOP to opt out.'},
   {id:'appt',   label:'Appointment Reminders', desc:'Confirm and remind clients',         sample:'Hi [Name], reminder: appt on [Date] at [Time]. Reply CONFIRM or STOP to opt out.'},
@@ -328,16 +342,21 @@ const S = {
   respSignerFn:'',respSignerLn:'',respTitle:'',respSigData:'',
   e911Street:'',e911City:'',e911State:'',e911Zip:'',e911Locations:[],
   users:[
-    {fn:'',ln:'',email:'',ext:'201',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357'},
-    {fn:'',ln:'',email:'',ext:'202',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357'},
-    {fn:'',ln:'',email:'',ext:'203',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357'},
+    {fn:'',ln:'',email:'',ext:'201',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357',officeLoc:'Primary'},
+    {fn:'',ln:'',email:'',ext:'202',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357',officeLoc:'Primary'},
+    {fn:'',ln:'',email:'',ext:'203',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357',officeLoc:'Primary'},
   ],
   mainScript:'Thank you for calling [Company Name].\n\nFor Sales, press 1.\nFor Support, press 2.\nFor our hours and location, press 9.\nTo speak with someone directly, press 0, or stay on the line.',
   afterScript:'Thank you for calling [Company Name]. Our office is currently closed.\n\nOur hours are [your hours]. Please leave a message and we\'ll return your call next business day.',
   hoursScript:'Thank you for calling [Company Name].\n\nWe are open Monday through Friday, 9am to 5pm.\nWe are located at [your address].',
   voice:'Carmen',
-  routing:[{opt:'Press 1',to:''},{opt:'Press 2',to:''},{opt:'Press 9',to:'Hours & location greeting'},{opt:'No Input / Timeout',to:''}],
+  callFlow:[
+    {key:'press1',label:'',destType:'ring',extensions:[],ringType:'sim',groupName:'',singleExt:'',extNum:'',vmExt:''},
+    {key:'press2',label:'',destType:'ring',extensions:[],ringType:'sim',groupName:'',singleExt:'',extNum:'',vmExt:''},
+    {key:'no_input',label:'No Input / Timeout',destType:'vm',extensions:[],ringType:'sim',groupName:'',singleExt:'',extNum:'',vmExt:''},
+  ],
   ahOpt:'',ahFwd:'',ahOther:'',bizHours:'',bizAddr:'',
+  notes:'',
   smsOn:false,useCases:[],smsSamples:{},
   brandName:'',brandEIN:'',brandAddr:'',brandEmail:'',brandPhone:'',brandWebsite:'',
   ssDomain:'',
@@ -389,24 +408,25 @@ function save(){
     if(sigPads['respSig'])S.respSigData=sigPads['respSig'].data();
     S.e911Street=gv('e911Street');S.e911City=gv('e911City');S.e911State=gv('e911State');S.e911Zip=gv('e911Zip');
     S.e911Locations=Array.from(document.querySelectorAll('.loc-card')).map(function(c){
-      return {label:qv(c,'.loc-lbl-inp'),street:qv(c,'.loc-str'),city:qv(c,'.loc-cit'),state:qv(c,'.loc-st'),zip:qv(c,'.loc-zip'),
-        extensions:Array.from(c.querySelectorAll('.ext-chip.on')).map(function(x){return x.dataset.ext;})};
+      return {label:qv(c,'.loc-lbl-inp'),street:qv(c,'.loc-str'),city:qv(c,'.loc-cit'),state:qv(c,'.loc-st'),zip:qv(c,'.loc-zip')};
     });
   }
   if(s===1){
     S.users=Array.from(document.querySelectorAll('.urow')).map(function(r){
       return {fn:qv(r,'.ufn'),ln:qv(r,'.uln'),email:qv(r,'.uem'),ext:qv(r,'.uex'),dev:qv(r,'.udv'),
         model:qv(r,'.umdl')||'',mac:qv(r,'.umc')||'',
-        vmailPref:qv(r,'.uvmail')||'both',pin:qv(r,'.upin')||'1357'};
+        vmailPref:qv(r,'.uvmail')||'both',pin:qv(r,'.upin')||'1357',
+        officeLoc:qv(r,'.uofloc')||'Primary'};
     });
   }
   if(s===2){
     S.mainScript=gv('mainScript')||S.mainScript;S.afterScript=gv('afterScript')||S.afterScript;
     S.hoursScript=gv('hoursScript')||S.hoursScript;
     var vc=document.querySelector('.voice-card.selected');if(vc)S.voice=vc.dataset.v;
-    document.querySelectorAll('.rrow').forEach(function(r,i){if(S.routing[i])S.routing[i].to=r.querySelector('.rinp').value;});
+    saveCF();
     var ah=document.querySelector('.ah-opt.selected input');S.ahOpt=ah?ah.value:S.ahOpt;
     S.ahFwd=gv('ahFwd');S.ahOther=gv('ahOther');S.bizHours=gv('bizHours');S.bizAddr=gv('bizAddr');
+    S.notes=gv('notes')||S.notes;
   }
   if(s===3){
     var tog=document.getElementById('smsTog');S.smsOn=tog?tog.checked:S.smsOn;
@@ -456,22 +476,22 @@ function showIntro(){
     +'We\'re thrilled to have you on board. This short wizard walks you through everything we need to build your phone system \u2014 no technical experience required.'
     +'</p>'
     +'<div style="background:rgba(79,138,255,0.05);border-radius:10px;padding:20px 24px;max-width:480px;margin:0 auto 28px;text-align:left">'
-    +'<div style="font-size:13px;font-weight:700;color:var(--pri);margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px">What we\'ll cover \u2014 about 10\u201315 minutes</div>'
+    +'<div style="font-size:13px;font-weight:700;color:var(--pri);margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px">What we\'ll cover \u2014 takes about 5\u201310 minutes</div>'
     +'<div style="display:flex;flex-direction:column;gap:12px">'
     +introStep('1','\uD83D\uDCDE','Phone Numbers','Tell us what numbers you\'d like \u2014 keep your existing ones or get new ones')
-    +introStep('2','\uD83D\uDC65','Users &amp; Extensions','Add your team and their extensions')
-    +introStep('3','\uD83C\uDFA4','Greetings &amp; Call Flow','Customize what callers hear and where calls go')
-    +introStep('4','\uD83D\uDCAC','SMS &amp; Messaging','Set up text messaging (optional)')
+    +introStep('2','\uD83D\uDC65','Your Team','Add your team members and their phone extensions')
+    +introStep('3','\uD83C\uDFA4','Call Setup','Write your greeting, pick a voice, and set up call routing')
+    +introStep('4','\uD83D\uDCAC','Text Messaging','Set up SMS on your business number (optional)')
     +introStep('5','\u2705','Review &amp; Submit','Confirm everything \u2014 we take it from there')
     +'</div></div>'
-    +'<div style="background:var(--amber-bg);border-left:4px solid var(--amber-bd);border-radius:6px;padding:14px 18px;max-width:480px;margin:0 auto 28px;text-align:left;font-size:13.5px;color:var(--amber-tx)">'
+    +'<div style="background:var(--amber-bg);border-left:4px solid var(--amber-bd);border-radius:6px;padding:14px 18px;max-width:480px;margin:0 auto 28px;text-align:left;font-size:13.5px;color:rgba(255,184,0,0.9)">'
     +'<strong>&#128203; Helpful to have handy:</strong><br>'
-    +'\u2022 Your most recent phone bill (if transferring an existing number)<br>'
+    +'\u2022 Your most recent phone bill (only needed if you\'re transferring an existing number)<br>'
     +'\u2022 Your team\'s names and email addresses<br>'
     +'\u2022 Your business address for E911 registration'
     +'</div>'
     +'<p style="font-size:13.5px;color:var(--tx2);max-width:440px;margin:0 auto 24px;line-height:1.6">'
-    +'Once you submit, your dedicated UNICOM onboarding specialist will reach out within <strong>1 business day</strong> to schedule your installation and confirm your port date.'
+    +'Once you hit submit, your dedicated UNICOM onboarding specialist reviews everything and reaches out within <strong>1 business day</strong>. No need to have every answer right now \u2014 you can always update things with your specialist.'
     +'</p>'
     +'<button class="btn btn-pri" onclick="startWizard()" style="font-size:16px;padding:13px 36px">Let\'s get started \u2192</button>'
     +'<p style="font-size:12px;color:var(--tx3);margin-top:14px">You can save your progress at any time using the button in the top right.</p>'
@@ -489,7 +509,7 @@ function step1(){
   var h='';
   // Account info card
   h+='<div class="card"><div class="card-title">Account Information</div>'
-    +'<div class="card-sub">This fills automatically into your porting forms. Enter it exactly as it appears on your phone bill.</div>'
+    +'<div class="card-sub">A few basics to get started. If you\'re transferring an existing number, enter your company name exactly as it appears on your current phone bill.</div>'
     +'<div class="field-row">'
     +'<div class="field"><label>Company Name (legal)</label><input id="companyName" placeholder="As on your phone bill" value="'+e(S.companyName)+'"></div>'
     +'<div class="field"><label>Time Zone</label><select id="timezone">'
@@ -503,8 +523,8 @@ function step1(){
     +'</div>';
 
   // What do you want card
-  h+='<div class="card"><div class="card-title">Step 1 \u2014 Phone Numbers</div>'
-    +'<div class="card-sub">Tell us what you\'d like to do with your phone numbers. You can select more than one.</div>'
+  h+='<div class="card"><div class="card-title">Your Phone Numbers</div>'
+    +'<div class="card-sub">What would you like to do with your phone numbers? Select everything that applies \u2014 you can mix and match.</div>'
     +'<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">'
     +numChoice('portLocalChk','portLocal','\uD83D\uDCDE Transfer my existing local numbers','Standard 10-digit numbers like (555) 555-5555')
     +numChoice('portTFChk','portTF','\u2605 Transfer my toll-free numbers','800, 888, 877, 866, or 855 numbers')
@@ -517,9 +537,9 @@ function step1(){
         +'<div style="font-size:14px;font-weight:700;color:var(--pri);margin-bottom:14px">\uD83D\uDCDE Local Numbers to Transfer</div>'
         +'<div class="ibox amber"><strong>Have your phone bill ready.</strong>The information below must match your current carrier\'s records exactly.</div>'
         +'<div class="field"><label>Your numbers to port <span style="font-weight:400;color:var(--tx2)">\u2014 paste them below, one per line</span></label>'
-        +'<textarea id="localNums" rows="5" style="width:100%;border:1px solid var(--g300);border-radius:7px;padding:10px 12px;font-size:14px;font-family:monospace;resize:vertical;line-height:1.8" placeholder="(555) 555-1001\n(555) 555-1002\n(555) 555-1003">'+e(S.localNums)+'</textarea>'
+        +'<textarea id="localNums" rows="5" style="width:100%;border:1px solid var(--bd);border-radius:7px;padding:10px 12px;font-size:14px;font-family:monospace;resize:vertical;line-height:1.8" placeholder="(555) 555-1001\n(555) 555-1002\n(555) 555-1003">'+e(S.localNums)+'</textarea>'
         +'<div class="field-hint">Tip: you can paste a whole list at once \u2014 we\'ll read it. Or drag &amp; drop a .txt or .csv file. <label style="color:var(--pri);cursor:pointer;font-weight:600">Browse file<input type="file" accept=".txt,.csv,.xlsx" style="display:none" onchange="importNums(this,\'localNums\')"></label></div></div>'
-        +'<div class="field"><label>Current Carrier</label><input id="localCarrier" placeholder="e.g. AT&amp;T, Verizon, Spectrum, Comcast" value="'+e(S.localCarrier)+'"></div>'
+        +'<div class="field"><label>Current Carrier</label><input id="localCarrier" placeholder="e.g. AT&amp;T, Verizon, Spectrum, Comcast, Optimum" value="'+e(S.localCarrier)+'"></div>'
         +'<div class="field-row">'
         +'<div class="field"><label>Name on Account <span style="font-weight:400;color:var(--tx2)">(as on your bill)</span></label><input id="localAuthName" placeholder="e.g. Acme Corp or John Smith" value="'+e(S.localAuthName)+'"></div>'
         +'<div class="field"><label>Account Number</label><input id="localAcctNum" placeholder="Found on your phone bill" value="'+e(S.localAcctNum)+'"></div>'
@@ -531,7 +551,7 @@ function step1(){
         '<div style="border:2px solid rgba(124,58,237,0.6);border-radius:9px;padding:18px;margin-bottom:12px">'
         +'<div style="font-size:14px;font-weight:700;color:rgba(161,138,255,0.9);margin-bottom:14px">\u2605 Toll-Free Numbers to Transfer</div>'
         +'<div class="field"><label>Your toll-free numbers <span style="font-weight:400;color:var(--tx2)">\u2014 one per line</span></label>'
-        +'<textarea id="tfNums" rows="4" style="width:100%;border:1px solid var(--g300);border-radius:7px;padding:10px 12px;font-size:14px;font-family:monospace;resize:vertical;line-height:1.8" placeholder="(800) 555-1234\n(888) 555-5678">'+e(S.tfNums)+'</textarea>'
+        +'<textarea id="tfNums" rows="4" style="width:100%;border:1px solid var(--bd);border-radius:7px;padding:10px 12px;font-size:14px;font-family:monospace;resize:vertical;line-height:1.8" placeholder="(800) 555-1234\n(888) 555-5678">'+e(S.tfNums)+'</textarea>'
         +'<div class="field-hint">Paste a list or <label style="color:var(--pri);cursor:pointer;font-weight:600">browse a file<input type="file" accept=".txt,.csv" style="display:none" onchange="importNums(this,\'tfNums\')"></label></div></div>'
         +'<div class="field"><label>Current Carrier</label><input id="tfCarrier" placeholder="e.g. AT&amp;T, Verizon" value="'+e(S.tfCarrier)+'"></div>'
         +'<div class="field-row">'
@@ -571,13 +591,13 @@ function step1(){
   // LOA (local porting)
   if(S.portLocal){
     h+='<div class="card"><div class="card-title">Letter of Authorization (LOA)</div>'
-      +'<div class="card-sub">Authorizes UNICOM to request the transfer on your behalf. Your signature below is legally binding.</div>'
+      +'<div class="card-sub">By signing below, you give UNICOM permission to request the transfer of your phone numbers from your current provider. It\'s a standard one-time form that all carriers require.</div>'
       +'<div class="ibox amber"><strong>&#128221; A few things to know:</strong>'
       +'The information here must match your current phone bill exactly. '
       +'Please also upload a copy of your most recent bill below \u2014 carriers require it to verify account ownership.</div>'
       +'<div class="field-row">'
-      +'<div class="field"><label>Authorized Signer \u2014 First Name</label><input id="loaSignerFn" value="'+e(S.loaSignerFn||S.contactFn)+'"></div>'
-      +'<div class="field"><label>Authorized Signer \u2014 Last Name</label><input id="loaSignerLn" value="'+e(S.loaSignerLn||S.contactLn)+'"></div>'
+      +'<div class="field"><label>Your First Name</label><input id="loaSignerFn" value="'+e(S.loaSignerFn||S.contactFn)+'"></div>'
+      +'<div class="field"><label>Your Last Name</label><input id="loaSignerLn" value="'+e(S.loaSignerLn||S.contactLn)+'"></div>'
       +'</div>'
       +'<div class="field-label">Draw your signature below</div>'
       +'<div class="sig-pad-wrap"><canvas class="sig-canvas" id="loaCvs" width="680" height="120"></canvas>'
@@ -585,15 +605,15 @@ function step1(){
       +'<div class="field" style="margin-top:12px"><div class="field-label">Upload your most recent phone bill</div>'
       +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'billList\')">'
       +'<div class="upload-zone-icon">&#128206;</div><div class="upload-zone-text">Click to upload or drag &amp; drop</div>'
-      +'<div class="upload-zone-hint">PDF, JPG, or PNG \u2022 Most recent bill only</div></div>'
+      +'<div class="upload-zone-hint">PDF, JPG, or PNG \u2022 Any page showing your account name and number is fine</div></div>'
       +'<ul class="upload-files" id="billList"></ul></div></div>';
   }
 
   // RESPORG (toll-free porting)
   if(S.portTF){
-    h+='<div class="card"><div class="card-title">Resporg \u2014 Toll-Free Porting</div>'
-      +'<div class="card-sub">Authorizes UNICOM to act as the Responsible Organization for your toll-free numbers. <strong>Resporg ID: WLS27</strong></div>'
-      +'<div class="ibox amber">The undersigned customer hereby appoints Unicom Telecom, Inc to act as its authorized agent for all matters pertaining to the 8YY services listed above. This authorization will expire upon written notification only.</div>'
+    h+='<div class="card"><div class="card-title">Authorize Toll-Free Number Transfer</div>'
+      +'<div class="card-sub">This form authorizes UNICOM to take over management of your toll-free numbers from your current provider \u2014 a standard one-time step for all toll-free transfers.</div>'
+      +'<div class="ibox amber">By filling out this form, you authorize UNICOM Telecom to act as your agent for your toll-free number services. This allows us to request the transfer and manage the number on your behalf.</div>'
       +'<div class="field-row"><div class="field"><label>Contact Name</label><input id="respContactName" value="'+e(S.respContactName||(S.contactFn+' '+S.contactLn).trim())+'"></div>'
       +'<div class="field"><label>Contact Phone</label><input id="respContactPhone" type="tel" value="'+e(S.respContactPhone||S.contactPhone)+'"></div></div>'
       +'<div class="field"><label>Street Address</label><input id="respStreet" value="'+e(S.respStreet||S.e911Street)+'"></div>'
@@ -616,9 +636,9 @@ function step1(){
   }
 
   // E911
-  h+='<div class="card"><div class="card-title">E911 Address</div>'
-    +'<div class="card-sub">Emergency services dispatch to this address when 911 is dialed from your system.</div>'
-    +'<div class="ibox amber"><strong>&#128658; Required by law.</strong>If your team works from multiple locations, add them below and assign the right extensions.</div>'
+  h+='<div class="card"><div class="card-title">Business Address (for Emergency Services)</div>'
+    +'<div class="card-sub">Emergency services dispatch to this address when 911 is dialed. Add any additional office or branch locations below — you will assign each team member to their location on the next step.</div>'
+    +'<div class="ibox amber"><strong>&#128658; Required by law.</strong>Every business phone system must be registered to a physical address so emergency services know where to send help.</div>'
     +'<div class="field"><label>Street</label><input id="e911Street" placeholder="123 Main St" value="'+e(S.e911Street)+'"></div>'
     +'<div class="field-row3"><div class="field"><label>City</label><input id="e911City" placeholder="Springfield" value="'+e(S.e911City)+'"></div>'
     +'<div class="field"><label>State</label><input id="e911State" placeholder="NJ" maxlength="2" value="'+e(S.e911State)+'"></div>'
@@ -627,20 +647,23 @@ function step1(){
     +'<button class="add-row-btn" onclick="addLoc()">+ Add a second location</button></div>';
 
   // CNAM
-  h+='<div class="card"><div class="field"><label>Outbound Caller ID Name (CNAM)</label>'
+  h+='<div class="card"><div class="field"><label>Your Caller ID Name</label>'
     +'<input id="cnam" placeholder="e.g. UNICOM TELECOM (max 15 characters)" maxlength="15" value="'+e(S.cnam)+'">'
-    +'<div class="field-hint">What shows on the recipient\'s screen when you call them. Max 15 characters.</div></div></div>';
+    +'<div class="field-hint">This is your business name as it appears on someone\'s phone when you call them. Max 15 characters.</div></div></div>';
 
   return h;
 }
 
-function numChoice(id, key, title, desc){
+function numChoice(id,key,title,desc){
   var checked=S[key];
-  return '<label style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:2px solid '+(checked?'var(--pri)':'var(--bd)')+';border-radius:9px;cursor:pointer;transition:all .15s;background:'+(checked?'rgba(79,138,255,0.1)':'#fff')+'" onclick="toggleNumType(\''+key+'\')">'
-    +'<input type="checkbox" id="'+id+'" style="width:18px;height:18px;accent-color:var(--pri);margin-top:2px;flex-shrink:0"'+(checked?' checked':'')+'>'
-    +'<div><div style="font-size:14px;font-weight:700;color:var(--tx)">'+title+'</div>'
-    +'<div style="font-size:12.5px;color:var(--tx2);margin-top:2px">'+desc+'</div></div>'
-    +'</label>';
+  var bdr=checked?'rgba(79,138,255,0.65)':'rgba(100,150,255,0.15)';
+  var bg=checked?'rgba(79,138,255,0.12)':'rgba(255,255,255,0.04)';
+  var shd=checked?'0 0 18px rgba(79,138,255,0.22)':'none';
+  var chk='<div style="width:20px;height:20px;border-radius:5px;border:2px solid '+(checked?'#4f8aff':'rgba(100,150,255,0.35)')+';background:'+(checked?'#4f8aff':'transparent')+';flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .2s">'+(checked?'<svg width="12" height="10" viewBox="0 0 12 10" fill="none"><path d="M1 5l3.5 3.5L11 1" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>':'')+'</div>';
+  return '<div data-nckey="'+key+'" onclick="toggleNumType(this.dataset.nckey)" style="display:flex;align-items:flex-start;gap:14px;padding:16px 18px;border:1.5px solid '+bdr+';border-radius:10px;cursor:pointer;transition:all .2s;background:'+bg+';box-shadow:'+shd+';user-select:none;-webkit-user-select:none">'
+    +chk
+    +'<div style="flex:1;pointer-events:none"><div style="font-size:14px;font-weight:600;color:#e8eeff;letter-spacing:-0.01em">'+title+'</div>'
+    +'<div style="font-size:12.5px;color:rgba(161,182,247,0.65);margin-top:3px">'+desc+'</div></div></div>';
 }
 function toggleNumType(key){save();S[key]=!S[key];document.getElementById('content').innerHTML=step1();bind();setTimeout(function(){if(document.getElementById('loaCvs'))initSig('loaSig','loaCvs',S.loaSigData);if(document.getElementById('respCvs'))initSig('respSig','respCvs',S.respSigData);},60);}
 function updNewACs(){save();document.getElementById('content').innerHTML=step1();bind();}
@@ -656,38 +679,33 @@ function importNums(inp,targetId){
   reader.readAsText(f);
 }
 function locCard(loc,i){
-  var chips=S.users.map(function(u){
-    var on=loc.extensions&&loc.extensions.indexOf(u.ext)>=0;
-    return '<span class="ext-chip'+(on?' on':'')+'" data-ext="'+u.ext+'" onclick="this.classList.toggle(\'on\')">Ext '+u.ext+(u.fn?' \u2013 '+u.fn:'')+'</span>';
-  }).join('');
   return '<div class="loc-card"><div class="loc-hdr"><span class="loc-lbl">Additional Location '+(i+1)+'</span>'
     +'<button class="del-btn" onclick="this.closest(\'.loc-card\').remove()">&times;</button></div>'
-    +'<div class="field"><label>Location Name</label><input class="loc-lbl-inp" placeholder="e.g. Warehouse, Suite 200" value="'+e(loc.label||'')+'"></div>'
+    +'<div class="field"><label>Location Name / Label</label><input class="loc-lbl-inp" placeholder="e.g. Warehouse, Suite 200, Branch Office" value="'+e(loc.label||'')+'"></div>'
     +'<div class="field"><label>Street</label><input class="loc-str" value="'+e(loc.street||'')+'"></div>'
     +'<div class="field-row3"><div class="field"><label>City</label><input class="loc-cit" value="'+e(loc.city||'')+'"></div>'
     +'<div class="field"><label>State</label><input class="loc-st" maxlength="2" value="'+e(loc.state||'')+'"></div>'
-    +'<div class="field"><label>Zip</label><input class="loc-zip" value="'+e(loc.zip||'')+'"></div></div>'
-    +'<div class="field-label">Assign extensions at this location:</div>'
-    +'<div class="ext-chips">'+chips+'</div></div>';
+    +'<div class="field"><label>Zip</label><input class="loc-zip" value="'+e(loc.zip||'')+'"></div></div></div>';
 }
 function addLoc(){save();S.e911Locations.push({label:'',street:'',city:'',state:'',zip:'',extensions:[]});document.getElementById('content').innerHTML=step1();bind();}
 function handleFile(inp,lid){var l=document.getElementById(lid);if(!l)return;l.innerHTML=Array.from(inp.files).map(function(f){return '<li class="upload-file">&#9989; '+f.name+' ('+(f.size/1024).toFixed(0)+'KB)</li>';}).join('');}
 
 /* ===== STEP 2 ===== */
 function step2(){
-  return '<div class="card"><div class="card-title">Step 2 \u2014 Users &amp; Extensions</div>'
-    +'<div class="card-sub">Add everyone who will have a phone extension.</div>'
-    +'<div class="ibox amber"><strong>&#128241; Desk Phone or App?</strong>Desk phone users need their MAC address (sticker on bottom of phone) and device model. App users can skip those.</div>'
+  return '<div class="card"><div class="card-title">Your Team</div>'
+    +'<div class="card-sub">Add everyone who needs their own business phone line. Each person gets their own extension number \u2014 like a short internal number (e.g. 201) that routes to their phone.</div>'
+    +'<div class="ibox amber"><strong>&#128241; Desk Phone or Mobile App?</strong>Our phone system works on desk phones, a mobile/desktop app, or both. If using a desk phone, we need the model name and a code from the bottom of the phone (called a MAC address). <strong>Ordering phones through UNICOM?</strong> Just leave those fields blank \u2014 we handle it.</div>'
     +'<div class="ibox blue"><strong>&#128274; Voicemail PIN default: 1357</strong>PINs like 1234, 0000, and other common sequences are blocked by the system for security.</div>'
+    
     +'<div class="tbl-wrap"><table class="utbl"><thead><tr>'
     +'<th>First</th><th>Last</th><th>Email</th><th style="width:50px">Ext.</th>'
     +'<th style="width:90px">Device</th><th>Model</th><th>MAC</th>'
-    +'<th style="width:115px">Voicemail</th><th style="width:56px">PIN</th><th style="width:30px"></th>'
+    +'<th style="width:115px">Voicemail</th><th style="width:56px">PIN</th><th style="width:115px">Office Location</th><th style="width:30px"></th>'
     +'</tr></thead><tbody id="ubody">'+S.users.map(urow).join('')+'</tbody></table></div>'
     +'<button class="add-row-btn" onclick="addUser()">+ Add another user</button></div>';
 }
 function urow(u){
-  var d=u.dev==='Desk Phone',dis=d?'':'disabled style="background:#f9fafb;color:#9ca3af"';
+  var d=(u.dev==='Desk Phone'||u.dev==='Both'),dis=d?'':'disabled style="color:rgba(232,238,255,0.25)"';
   var vOpts=['<option value="both"'+(u.vmailPref==='both'?' selected':'')+'>Both</option>',
     '<option value="email"'+(u.vmailPref==='email'?' selected':'')+'>Email only</option>',
     '<option value="mailbox"'+(u.vmailPref==='mailbox'?' selected':'')+'>Mailbox only</option>'].join('');
@@ -695,17 +713,26 @@ function urow(u){
     +'<td><input class="uln" placeholder="Last" value="'+e(u.ln)+'"></td>'
     +'<td><input class="uem" type="email" placeholder="email@co.com" value="'+e(u.email)+'"></td>'
     +'<td><input class="uex ext-inp" maxlength="4" value="'+e(u.ext)+'"></td>'
-    +'<td><select class="udv" onchange="togDesk(this)"><option'+(d?'':' selected')+'>App</option><option'+(d?' selected':'')+'>Desk Phone</option></select></td>'
+    +'<td><select class="udv" onchange="togDesk(this)"><option value="App"'+(u.dev==='App'?' selected':'')+'>App</option><option value="Desk Phone"'+(u.dev==='Desk Phone'?' selected':'')+'>Desk Phone</option><option value="Both"'+(u.dev==='Both'?' selected':'')+'>Both</option></select></td>'
     +'<td><input class="umdl" placeholder="'+(d?'e.g. T46U':'\u2014')+'" '+dis+' value="'+e(u.model||'')+'"></td>'
     +'<td><input class="umc" placeholder="'+(d?'AA:BB:CC:DD:EE:FF':'\u2014')+'" '+dis+' value="'+e(u.mac||'')+'"></td>'
     +'<td><select class="uvmail">'+vOpts+'</select></td>'
     +'<td><input class="upin pin-inp" maxlength="6" placeholder="1357" value="'+e(u.pin||'1357')+'"></td>'
+    +'<td>'+locDropdown(u.officeLoc)+'</td>'
     +'<td><button class="del-btn" onclick="delUser(this)">&times;</button></td></tr>';
+}
+function locDropdown(selected){
+  var opts='<option value="Primary"'+((!selected||selected==='Primary')?' selected':'')+'>Primary</option>';
+  S.e911Locations.forEach(function(loc,i){
+    var lbl=loc.label||('Location '+(i+1));
+    opts+='<option value="'+e(lbl)+'"'+(selected===lbl?' selected':'')+'>'+e(lbl)+'</option>';
+  });
+  return '<select class="uofloc">'+opts+'</select>';
 }
 function addUser(){
   save();
   var exts=S.users.map(function(u){return parseInt(u.ext);}).filter(function(n){return !isNaN(n);});
-  S.users.push({fn:'',ln:'',email:'',ext:exts.length?String(Math.max.apply(null,exts)+1):'201',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357'});
+  S.users.push({fn:'',ln:'',email:'',ext:exts.length?String(Math.max.apply(null,exts)+1):'201',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357',officeLoc:'Primary'});
   document.getElementById('ubody').insertAdjacentHTML('beforeend',urow(S.users[S.users.length-1]));
 }
 function delUser(btn){if(document.querySelectorAll('.urow').length<=1)return;btn.closest('tr').remove();save();}
@@ -717,42 +744,151 @@ function togDesk(sel){
 }
 
 /* ===== STEP 3 ===== */
+const CF_KEYS = [
+  {v:'press0',l:'Press 0'},{v:'press1',l:'Press 1'},{v:'press2',l:'Press 2'},{v:'press3',l:'Press 3'},
+  {v:'press4',l:'Press 4'},{v:'press5',l:'Press 5'},{v:'press6',l:'Press 6'},{v:'press7',l:'Press 7'},
+  {v:'press8',l:'Press 8'},{v:'press9',l:'Press 9'},{v:'press_star',l:'Press *'},
+  {v:'no_input',l:'No Input / Timeout'},{v:'direct',l:'Direct / No Menu'},
+];
+const CF_DEST = [
+  {v:'ring',   l:'Ring a group of people'},
+  {v:'ext',    l:'Ring one specific person'},
+  {v:'vm',     l:'Send to voicemail'},
+  {v:'sub',    l:'Play another menu'},
+  {v:'external',l:'Forward to external number'},
+  {v:'hours',  l:'Hours & location info'},
+];
+
 function step3(){
-  var vc=VOICES.map(function(v){
-    var s=S.voice===v.name;
-    return '<div class="voice-card'+(s?' selected':'')+'" data-v="'+v.name+'" onclick="pickV(this)">'
-      +'<div class="voice-icon">'+(v.gender==='Female'?'\uD83D\uDC69':'\uD83D\uDC68')+'</div>'
-      +'<div class="voice-name">'+v.name+'</div><div class="voice-gender">'+v.gender+'</div>'
-      +'<button class="play-btn" id="pb_'+v.name+'" onclick="playV(event,\''+v.name+'\')">&#9654; Preview</button></div>';
-  }).join('');
-  var rr=S.routing.map(function(r){
-    var lk=r.opt==='Press 9';
-    return '<tr class="rrow"><td class="opt-lbl">'+r.opt+'</td>'
-      +'<td><input class="rinp" placeholder="e.g. Sales team, John, Voicemail\u2026" value="'+e(r.to)+'"'+(lk?' readonly style="background:#f9fafb;color:#6b7280;font-style:italic"':'')+'></td></tr>';
-  }).join('');
-  return '<div class="card"><div class="card-title">Step 3A \u2014 Greeting Scripts</div>'
-    +'<div class="card-sub">Edit to match your business. Replace anything in [brackets] with your real information.</div>'
+  var scripts='<div class="card"><div class="card-title">Your Greeting Scripts</div>'
+    +'<div class="card-sub">Edit these to match your business. Replace anything in [brackets] with your real information.</div>'
     +'<div class="divider">Main Greeting</div>'
-    +'<div class="sbox"><span class="sbox-label">&#9999;&#65039; Main greeting (all callers)</span><textarea id="mainScript" rows="6">'+e(S.mainScript)+'</textarea></div>'
+    +'<div class="sbox"><span class="sbox-label">&#9999;&#65039; Main greeting (all callers)</span>'
+    +'<textarea id="mainScript" rows="6">'+e(S.mainScript)+'</textarea></div>'
     +'<div class="divider">After-Hours Greeting</div>'
-    +'<div class="sbox"><span class="sbox-label">&#9999;&#65039; After-hours message</span><textarea id="afterScript" rows="5">'+e(S.afterScript)+'</textarea></div>'
-    +'<div class="divider">Hours &amp; Location Greeting</div>'
-    +'<div class="sbox"><span class="sbox-label">&#9999;&#65039; Hours &amp; location (Press 9)</span><textarea id="hoursScript" rows="4">'+e(S.hoursScript)+'</textarea></div></div>'
-    +'<div class="card"><div class="card-title">Step 3B \u2014 Voice Selection</div>'
+    +'<div class="sbox"><span class="sbox-label">&#9999;&#65039; After-hours message</span>'
+    +'<textarea id="afterScript" rows="5">'+e(S.afterScript)+'</textarea></div>'
+    +'<div class="divider">Hours & Location Greeting</div>'
+    +'<div class="sbox"><span class="sbox-label">&#9999;&#65039; Hours & location (Press 9)</span>'
+    +'<textarea id="hoursScript" rows="4">'+e(S.hoursScript)+'</textarea></div></div>';
+
+  var voices='<div class="card"><div class="card-title">Choose a Voice</div>'
     +'<div class="card-sub">Click Preview to hear each voice before choosing.</div>'
-    +'<div class="voice-grid">'+vc+'</div></div>'
-    +'<div class="card"><div class="card-title">Step 3C \u2014 Call Routing</div>'
-    +'<div class="card-sub">Where should each option ring after your greeting plays?</div>'
-    +'<div class="ibox amber"><strong>Ring group options</strong><b>Simultaneous:</b> everyone rings at once. <b>Sequential:</b> Person A first, then B if no answer.</div>'
-    +'<table class="rtbl"><thead><tr><th style="width:175px">Caller selects</th><th>Rings to</th></tr></thead><tbody>'+rr+'</tbody></table></div>'
-    +'<div class="card"><div class="card-title">Step 3D \u2014 After-Hours Routing</div>'
-    +'<div class="card-sub">What happens when someone calls outside business hours?</div>'
+    +'<div class="voice-grid">'+VOICES.map(function(v){
+      var s=S.voice===v.name;
+      return '<div class="voice-card'+(s?' selected':'')+'" data-v="'+v.name+'" onclick="pickV(this)">'
+        +'<div class="voice-icon">'+(v.gender==='Female'?'\uD83D\uDC69':'\uD83D\uDC68')+'</div>'
+        +'<div class="voice-name">'+v.name+'</div><div class="voice-gender">'+v.gender+'</div>'
+        +'<button class="play-btn" id="pb_'+v.name+'" onclick="playV(event,\''+v.name+'\')">&#9654; Preview</button></div>';
+    }).join('')+'</div></div>';
+
+  var cfRows=S.callFlow.map(cfRow).join('');
+  var callflow='<div class="card"><div class="card-title">Call Routing</div>'
+    +'<div class="card-sub">For each option in your phone menu, tell us where the call should go. Add as many as you need.</div>'
+    +'<div class="ibox amber"><strong>How ring groups work</strong>'
+    +'<b>All ring at once:</b> everyone in the group is called at the same time \u2014 whoever picks up first gets the call. '
+    +'<b>One at a time:</b> calls go to Person A first, then Person B if they don\'t answer, and so on.</div>'
+    +'<div id="cfRows">'+cfRows+'</div>'
+    +'<button class="add-row-btn" onclick="addCFRow()">+ Add menu option</button></div>';
+
+  var ahCard='<div class="card"><div class="card-title">After-Hours Calls</div>'
+    +'<div class="card-sub">When someone calls outside your business hours, what should happen?</div>'
     +'<div class="ah-opts">'+ahO('voicemail','\uD83D\uDCEC Go to voicemail')+ahO('forward','\uD83D\uDCF2 Ring to cell / forwarding number')+ahO('other','\uD83D\uDCAC Other')+'</div>'
     +'<div id="ahFwdF" class="cond'+(S.ahOpt==='forward'?' show':'')+'"><div class="field"><label>Forwarding number</label><input id="ahFwd" type="tel" placeholder="(555) 555-5555" value="'+e(S.ahFwd)+'"></div></div>'
     +'<div id="ahOthF" class="cond'+(S.ahOpt==='other'?' show':'')+'"><div class="field"><label>Please describe</label><input id="ahOther" placeholder="Describe\u2026" value="'+e(S.ahOther)+'"></div></div>'
-    +'<div class="field-row" style="margin-top:8px">'
-    +'<div class="field"><label>Business hours</label><input id="bizHours" placeholder="e.g. Mon\u2013Fri 9am\u20135pm" value="'+e(S.bizHours)+'"></div>'
+    +'<div class="field-row"><div class="field"><label>Business hours</label><input id="bizHours" placeholder="e.g. Mon\u2013Fri 9am\u20135pm; Sat\u2013Sun Closed" value="'+e(S.bizHours)+'"></div>'
     +'<div class="field"><label>Business address</label><input id="bizAddr" placeholder="123 Main St, Springfield, NJ" value="'+e(S.bizAddr)+'"></div></div></div>';
+
+  var notesCard='<div class="card"><div class="card-title">Notes for Your Onboarding Team</div>'
+    +'<div class="card-sub">Anything else your onboarding team should know about your call flow, special routing, or setup preferences?</div>'
+    +'<div class="field"><textarea id="notes" rows="5" style="width:100%;border:1px solid var(--inp-bd);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp);resize:vertical;line-height:1.6" placeholder="e.g. The owner should always be reachable after hours. We close early on Fridays. Our receptionist handles overflow. Holiday schedule differs from regular hours\u2026">'+e(S.notes)+'</textarea></div></div>';
+
+  return scripts+voices+callflow+ahCard+notesCard;
+}
+
+function cfRow(cf, i){
+  var keyOpts=CF_KEYS.map(function(k){return '<option value="'+k.v+'"'+(cf.key===k.v?' selected':'')+'>'+k.l+'</option>';}).join('');
+  var destOpts=CF_DEST.map(function(d){return '<option value="'+d.v+'"'+(cf.destType===d.v?' selected':'')+'>'+d.l+'</option>';}).join('');
+
+  // User extension chips for ring group / single ext / voicemail
+  var extChips=S.users.map(function(u){
+    var on=cf.extensions&&cf.extensions.indexOf(u.ext)>=0;
+    return '<span class="ext-chip'+(on?' on':'')+'" data-ext="'+u.ext+'" data-idx="'+i+'" onclick="toggleCFExt(this)">'+u.ext+(u.fn?' \u2013 '+u.fn:'')+'</span>';
+  }).join('');
+
+  var destDetail='';
+  if(cf.destType==='ring'){
+    destDetail='<div class="cf-detail">'
+      +'<div class="field"><label>Ring Group Name <span style="font-weight:400;opacity:.6">(optional)</span></label><input class="cf-grpname" placeholder="e.g. Sales Team, Support Queue" value="'+e(cf.groupName||'')+'"></div>'
+      +'<div class="field-label" style="margin-bottom:8px">Select extensions in this ring group:</div>'
+      +'<div class="ext-chips" style="margin-bottom:12px">'+extChips+'</div>'
+      +'<div style="display:flex;gap:8px">'
+      +'<button class="cf-ring-btn'+(cf.ringType==='sim'?' active':'')+'" onclick="setCFRing(this,\'sim\','+i+')" style="flex:1">&#9654;&#9654; Simultaneous</button>'
+      +'<button class="cf-ring-btn'+(cf.ringType==='seq'?' active':'')+'" onclick="setCFRing(this,\'seq\','+i+')" style="flex:1">&#9654; Sequential</button>'
+      +'</div></div>';
+  } else if(cf.destType==='ext'){
+    var extOpts='<option value="">Select extension\u2026</option>'+S.users.map(function(u){return '<option value="'+u.ext+'"'+(cf.singleExt===u.ext?' selected':'')+'>'+u.ext+(u.fn?' \u2013 '+u.fn+' '+u.ln:'')+'</option>';}).join('');
+    destDetail='<div class="cf-detail"><div class="field"><label>Route to extension</label><select class="cf-single-ext">'+extOpts+'</select></div></div>';
+  } else if(cf.destType==='vm'){
+    var vmOpts='<option value="">Select voicemail box\u2026</option>'+S.users.map(function(u){return '<option value="'+u.ext+'"'+(cf.vmExt===u.ext?' selected':'')+'>'+u.ext+(u.fn?' \u2013 '+u.fn+' '+u.ln:'')+'</option>';}).join('');
+    destDetail='<div class="cf-detail"><div class="field"><label>Voicemail box</label><select class="cf-vm-ext">'+vmOpts+'</select></div>'
+      +'<div class="field"><label>Voicemail greeting / instructions <span style="font-weight:400;opacity:.6">(optional)</span></label><input class="cf-vm-note" placeholder="e.g. Standard voicemail, or any specific greeting instructions" value="'+e(cf.vmNote||'')+'"></div></div>';
+  } else if(cf.destType==='external'){
+    destDetail='<div class="cf-detail"><div class="field"><label>External number to dial</label><input class="cf-ext-num" type="tel" placeholder="(555) 555-5555" value="'+e(cf.extNum||'')+'"></div></div>';
+  } else if(cf.destType==='sub'){
+    destDetail='<div class="cf-detail"><div class="field"><label>Describe the sub-menu or greeting</label><input class="cf-sub-note" placeholder="e.g. Billing sub-menu, Spanish language menu\u2026" value="'+e(cf.subNote||'')+'"></div></div>';
+  }
+
+  return '<div class="cf-row" data-idx="'+i+'">'
+    +'<div class="cf-row-hdr">'
+    +'<div style="display:flex;gap:8px;align-items:center;flex:1">'
+    +'<select class="cf-key" onchange="refreshCF()">'
+    +keyOpts+'</select>'
+    +'<input class="cf-label" placeholder="What callers hear (e.g. For Sales, For Support)" value="'+e(cf.label||'')+'" style="flex:1">'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;align-items:center">'
+    +'<select class="cf-dest" onchange="refreshCF()">'+destOpts+'</select>'
+    +'<button class="del-btn" onclick="delCFRow(this)" title="Remove option">&times;</button>'
+    +'</div></div>'
+    +destDetail+'</div>';
+}
+
+function addCFRow(){
+  saveCF();
+  S.callFlow.push({key:'press'+(S.callFlow.length+1),label:'',destType:'ring',extensions:[],ringType:'sim',groupName:'',singleExt:'',extNum:'',vmExt:'',vmNote:'',subNote:''});
+  document.getElementById('cfRows').insertAdjacentHTML('beforeend',cfRow(S.callFlow[S.callFlow.length-1],S.callFlow.length-1));
+}
+function delCFRow(btn){
+  if(document.querySelectorAll('.cf-row').length<=1) return;
+  btn.closest('.cf-row').remove(); saveCF();
+}
+function refreshCF(){ saveCF(); document.getElementById('cfRows').innerHTML=S.callFlow.map(cfRow).join(''); }
+function saveCF(){
+  S.callFlow=Array.from(document.querySelectorAll('.cf-row')).map(function(r){
+    var destType=r.querySelector('.cf-dest')?r.querySelector('.cf-dest').value:'ring';
+    var exts=Array.from(r.querySelectorAll('.ext-chip.on')).map(function(x){return x.dataset.ext;});
+    var rbtn=r.querySelector('.cf-ring-btn.active');
+    return {
+      key: r.querySelector('.cf-key')?r.querySelector('.cf-key').value:'press1',
+      label: r.querySelector('.cf-label')?r.querySelector('.cf-label').value:'',
+      destType: destType,
+      extensions: exts,
+      ringType: rbtn?(rbtn.onclick.toString().includes('sim')?'sim':'seq'):'sim',
+      groupName: r.querySelector('.cf-grpname')?r.querySelector('.cf-grpname').value:'',
+      singleExt: r.querySelector('.cf-single-ext')?r.querySelector('.cf-single-ext').value:'',
+      extNum: r.querySelector('.cf-ext-num')?r.querySelector('.cf-ext-num').value:'',
+      vmExt: r.querySelector('.cf-vm-ext')?r.querySelector('.cf-vm-ext').value:'',
+      vmNote: r.querySelector('.cf-vm-note')?r.querySelector('.cf-vm-note').value:'',
+      subNote: r.querySelector('.cf-sub-note')?r.querySelector('.cf-sub-note').value:'',
+    };
+  });
+}
+function toggleCFExt(chip){ chip.classList.toggle('on'); }
+function setCFRing(btn,type,idx){
+  var row=btn.closest('.cf-row');
+  row.querySelectorAll('.cf-ring-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  if(S.callFlow[idx]) S.callFlow[idx].ringType=type;
 }
 function ahO(v,l){return '<label class="ah-opt'+(S.ahOpt===v?' selected':'')+'"><input type="radio" name="ah" value="'+v+'"'+(S.ahOpt===v?' checked':'')+'><span class="ah-opt-text">'+l+'</span></label>';}
 function pickV(el){document.querySelectorAll('.voice-card').forEach(function(c){c.classList.remove('selected');});el.classList.add('selected');S.voice=el.dataset.v;}
@@ -775,7 +911,7 @@ function step4(){
       +'<div><div class="use-card-title">'+u.label+'</div><div class="use-card-desc">'+u.desc+'</div></div></div>'
       +(sel?'<div><textarea class="sample-area" data-use="'+u.id+'" rows="2">'+e(sv)+'</textarea></div>':'');
   }).join('');
-  return '<div class="card"><div class="card-title">Step 4 \u2014 SMS &amp; Text Messaging</div>'
+  return '<div class="card"><div class="card-title">Text Messaging</div>'
     +'<div class="card-sub">Would you like to send and receive texts on your business number?</div>'
     +'<div class="tog-wrap"><label class="tog"><input type="checkbox" id="smsTog"'+(S.smsOn?' checked':'')+' onchange="togSMS()"><span class="tog-sl"></span></label>'
     +'<span class="tog-lbl">Yes, enable SMS on my account</span></div>'
@@ -829,7 +965,7 @@ function step5(){
       +'<td>'+({'both':'Both','email':'Email','mailbox':'Mailbox'}[u.vmailPref]||'Both')+'</td>'
       +'<td style="font-family:monospace;font-size:12px">'+e(u.pin||'1357')+'</td></tr>';
   }).join('');
-  return '<div class="card"><div class="card-title">Step 5 \u2014 Review &amp; Submit</div>'
+  return '<div class="card"><div class="card-title">Review &amp; Submit</div>'
     +'<div class="card-sub">Review your information. Your onboarding team will be in touch within 1 business day.</div>'
     +'<div class="rv-section"><div class="rv-title">&#127970; Account</div>'
     +'<div class="rv-row"><span class="rv-key">Company</span><span class="rv-val">'+e(S.companyName||'\u2014')+'</span></div>'
@@ -840,21 +976,27 @@ function step5(){
     +'<div class="rv-row" style="margin-top:8px"><span class="rv-key">Outbound caller ID</span><span class="rv-val">'+e(S.cnam||'\u2014')+'</span></div>'
     +'<div class="rv-row"><span class="rv-key">E911 address</span><span class="rv-val">'+e([S.e911Street,S.e911City,S.e911State,S.e911Zip].filter(Boolean).join(', ')||'\u2014')+'</span></div></div>'
     +'<div class="rv-section"><div class="rv-title">&#128101; Users &amp; Extensions</div>'
-    +'<table class="rv-tbl"><thead><tr><th>Name</th><th>Email</th><th>Ext</th><th>Device</th><th>Model</th><th>MAC</th><th>Voicemail</th><th>PIN</th></tr></thead><tbody>'+uR+'</tbody></table></div>'
+    +'<table class="rv-tbl"><thead><tr><th>Name</th><th>Email</th><th>Ext</th><th>Device</th><th>Model</th><th>MAC</th><th>Voicemail</th><th>PIN</th><th>E911 Location</th></tr></thead><tbody>'+uR+'</tbody></table></div>'
     +'<div class="rv-section"><div class="rv-title">&#127897;&#65039; Greetings &amp; Call Flow</div>'
     +'<div class="rv-row"><span class="rv-key">Voice</span><span class="rv-val">'+e(S.voice)+'</span></div>'
-    +S.routing.map(function(r){return '<div class="rv-row"><span class="rv-key">'+e(r.opt)+'</span><span class="rv-val">'+e(r.to||'\u2014')+'</span></div>';}).join('')
+    +S.callFlow.map(function(cf){
+      var kl=CF_KEYS.find(function(k){return k.v===cf.key;});var kn=kl?kl.l:cf.key;
+      var dl=CF_DEST.find(function(d){return d.v===cf.destType;});var dn=dl?dl.l:'';
+      var detail=cf.destType==='ring'?(cf.groupName?cf.groupName+' — ':'')+cf.extensions.join(', ')+(cf.ringType==='sim'?' (sim)':' (seq)'):cf.destType==='ext'?'Ext '+cf.singleExt:cf.destType==='vm'?'VM – Ext '+cf.vmExt:cf.destType==='external'?cf.extNum:cf.subNote||dn;
+      return '<div class="rv-row"><span class="rv-key">'+(cf.label?e(cf.label)+' ('+kn+')':kn)+'</span><span class="rv-val">'+dn+(detail?' – '+e(detail):'')+'</span></div>';
+    }).join('')
     +'<div class="rv-row"><span class="rv-key">After hours</span><span class="rv-val">'+ahLbl+'</span></div>'
     +'<div class="rv-row"><span class="rv-key">Hours</span><span class="rv-val">'+e(S.bizHours||'\u2014')+'</span></div>'
     +'<div class="rv-row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="rv-key">Main greeting</span><div class="rv-script">'+e(S.mainScript)+'</div></div></div>'
+    +(S.notes?'<div class="rv-section"><div class="rv-title">&#128203; Notes</div><div class="rv-row"><div class="rv-script" style="width:100%">'+e(S.notes)+'</div></div></div>':'')
     +'<div class="rv-section"><div class="rv-title">&#128172; SMS</div>'
     +'<div class="rv-row"><span class="rv-key">SMS enabled</span><span class="rv-val">'+(S.smsOn?'Yes':'No')+'</span></div>'
     +(S.smsOn?'<div class="rv-row"><span class="rv-key">Use cases</span><span class="rv-val">'+e(S.useCases.join(', ')||'\u2014')+'</span></div>'
     +'<div class="rv-row"><span class="rv-key">Brand name</span><span class="rv-val">'+e(S.brandName||'\u2014')+'</span></div>':'')
     +'</div>'
     +'<div class="ibox amber">&#9989; By clicking Submit, you confirm this information is accurate.</div></div>'
-    +'<div class="export-box"><h3>&#128190; SkySwitch User Import</h3>'
-    +'<p>Enter your SkySwitch domain, then download the ready-to-import CSV. (Internal use \u2014 your team fills this in before downloading.)</p>'
+    +'<div class="export-box" style="border-color:rgba(224,214,30,0.4);background:linear-gradient(135deg,rgba(30,20,0,0.9),rgba(20,18,5,0.9))"><div style="display:inline-block;background:rgba(224,214,30,0.15);border:1px solid rgba(224,214,30,0.4);border-radius:6px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--gold);letter-spacing:.08em;margin-bottom:10px">&#128274; UNICOM TEAM ONLY</div><h3>&#128190; SkySwitch User Import</h3>'
+    +'<p>Enter the SkySwitch domain for this client, then download the provisioning CSV. This section is for your onboarding team \u2014 not the client.</p>'
     +'<input id="ssDomain" placeholder="e.g. COMPANYNAME.23699.service" value="'+e(S.ssDomain)+'">'
     +'<div class="export-btns">'
     +'<button class="btn-exp" onclick="dlCSV()">&#11015;&#65039; Download Users CSV</button>'
@@ -870,7 +1012,7 @@ function showSuccess(){
   document.getElementById('navBar').style.display='none';
   document.getElementById('content').innerHTML='<div class="card"><div class="succ">'
     +'<div class="succ-icon">\u2713</div><div class="succ-h">You\'re all set!</div>'
-    +'<div class="succ-body">Thank you for completing your setup. Your UNICOM onboarding specialist will review everything and be in touch within <strong>1 business day</strong> to schedule your port date and installation.</div>'
+    +'<div class="succ-body">Your information has been submitted successfully. Your dedicated UNICOM onboarding specialist will review everything and reach out within <strong>1 business day</strong> to walk you through next steps and schedule your go-live date.</div>'
     +'<div class="succ-list"><h4>What happens next</h4><ul>'
     +'<li>We review your setup information</li>'
     +((hl||ht)?'<li>We submit your porting request to your carrier</li>':'')
@@ -878,7 +1020,7 @@ function showSuccess(){
     +'<li>We build your phone system in advance</li>'
     +'<li>On port day \u2014 you\'re live! \uD83C\uDF89</li></ul></div>'
     +'<p style="font-size:13px;color:var(--tx2);margin-bottom:16px">Questions? Email <a href="mailto:onboarding@unicomtelecom.com" style="color:var(--pri)">onboarding@unicomtelecom.com</a></p>'
-    +((hl||ht)?'<div style="background:var(--amber-bg);border-radius:8px;padding:14px 16px;max-width:420px;margin:0 auto;font-size:13px;color:var(--amber-tx);text-align:left">'
+    +((hl||ht)?'<div style="background:var(--amber-bg);border-radius:8px;padding:14px 16px;max-width:420px;margin:0 auto;font-size:13px;color:rgba(255,184,0,0.9);text-align:left">'
     +'<strong>&#128206; Please email your signed LOA'+(ht?' and Resporg':'')+'PDF'+(ht?'s':'')+' to:</strong><br>'
     +'customerservice@unicomtelecom.com<br>liz@unicomtelecom.com<br>yaeli@unicomtelecom.com</div>':'')
     +'</div></div>';
@@ -935,7 +1077,7 @@ function genLOA(){
   af('Service Address',S.e911Street);
   af('City / State / Zip',[S.e911City,S.e911State,S.e911Zip].filter(Boolean).join(', '));
   y+=2;doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Account Details',15,y);y+=6;doc.setFontSize(9);
-  af('Billing Telephone Number (BTN)',btn);
+  af('Main Number on Your Bill',btn);
   af('Losing Carrier',lns[0]?lns[0].carrier:'');
   af('Losing Carrier Account Number',lns[0]?lns[0].acctNum:'');
   y+=3;doc.setFont('helvetica','bold');doc.setFontSize(10);
