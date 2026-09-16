@@ -367,17 +367,14 @@ const S = {
     {fn:'',ln:'',email:'',ext:'202',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357',officeLoc:'Primary'},
     {fn:'',ln:'',email:'',ext:'203',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357',officeLoc:'Primary'},
   ],
-  mainScript:'Thank you for calling [Company Name].\n\nFor Sales, press 1.\nFor Support, press 2.\nFor our hours and location, press 9.\nTo speak with someone directly, press 0, or stay on the line.',
   afterScript:'Thank you for calling [Company Name]. Our office is currently closed.\n\nOur hours are [your hours]. Please leave a message and we\'ll return your call next business day.',
-  hoursScript:'Thank you for calling [Company Name].\n\nWe are open Monday through Friday, 9am to 5pm.\nWe are located at [your address].',
   voice:'Carmen',
-  callFlow:[],
-  ringGroups:[],
-  sharedVmails:[],
+  greetings:[],
+  groups:[],
+  numbers:[],
+  numberRouting:{},
   ahOpt:'',ahFwd:'',ahOther:'',bizHours:'',bizAddr:'',
   notes:'',
-  noMenu:false,
-menuMode:'simple',
 smsOn:false,useCases:[],smsSamples:{},
   brandName:'',brandEIN:'',brandAddr:'',brandEmail:'',brandPhone:'',brandWebsite:'',
   ssDomain:'',
@@ -441,10 +438,9 @@ function save(){
     });
   }
   if(s===2){
-    S.mainScript=gv('mainScript')||S.mainScript;S.afterScript=gv('afterScript')||S.afterScript;
-    S.hoursScript=gv('hoursScript')||S.hoursScript;
+    S.afterScript=gv('afterScript')||S.afterScript;
     var vc=document.querySelector('.voice-card.selected');if(vc)S.voice=vc.dataset.v;
-    saveRGs();saveVMs();saveCFRows();
+    saveGreetings();saveGroups();saveNumberRouting();
     var ah=document.querySelector('.ah-opt.selected input');S.ahOpt=ah?ah.value:S.ahOpt;
     S.ahFwd=gv('ahFwd');S.ahOther=gv('ahOther');S.bizHours=gv('bizHours');S.bizAddr=gv('bizAddr');
     S.notes=gv('notes')||S.notes;
@@ -507,7 +503,7 @@ function showIntro(){
     +'<div style="display:flex;flex-direction:column;gap:12px">'
     +introStep('1','\uD83D\uDCDE','Phone Numbers','Tell us what numbers you\'d like \u2014 keep your existing ones or get new ones')
     +introStep('2','\uD83D\uDC65','Your Team','Add your team members and their phone extensions')
-    +introStep('3','\uD83C\uDFA4','Call Setup','Write your greeting, pick a voice, and set up call routing')
+    +introStep('3','\uD83C\uDFA4','Call Setup','Write your greetings, group your team, and choose where each number rings')
     +introStep('4','\uD83D\uDCAC','Text Messaging','Set up SMS on your business number (optional)')
     +introStep('5','\u2705','Review &amp; Submit','Confirm everything \u2014 we take it from there')
     +'</div></div>'
@@ -632,8 +628,9 @@ function step1(){
       +'<div class="field-label">Draw your signature below</div>'
       +'<div class="sig-pad-wrap"><canvas class="sig-canvas" id="loaCvs" width="680" height="120"></canvas>'
       +'<div class="sig-bar"><span>Use mouse or finger to sign</span><button class="sig-clear" onclick="clrSig(\'loaSig\',\'loaCvs\')">Clear</button></div></div>'
+      +'<button type="button" class="add-row-btn" onclick="genLOA()" style="margin-bottom:12px">&#128190; Download my signed LOA (PDF)</button>'
       +'<div class="field" style="margin-top:12px"><div class="field-label">Upload your most recent phone bill</div>'
-      +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'billList\')">'
+      +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'billList\',\'bill\')">'
       +'<div class="upload-zone-icon">&#128206;</div><div class="upload-zone-text">Click to upload or drag &amp; drop</div>'
       +'<div class="upload-zone-hint">PDF, JPG, or PNG \u2022 Any page showing your account name and number is fine</div></div>'
       +'<ul class="upload-files" id="billList"></ul></div></div>';
@@ -658,8 +655,9 @@ function step1(){
       +'<div class="field-label">Draw your signature below</div>'
       +'<div class="sig-pad-wrap"><canvas class="sig-canvas" id="respCvs" width="680" height="120"></canvas>'
       +'<div class="sig-bar"><span>Use mouse or finger to sign</span><button class="sig-clear" onclick="clrSig(\'respSig\',\'respCvs\')">Clear</button></div></div>'
+      +'<button type="button" class="add-row-btn" onclick="genResp()" style="margin-bottom:12px">&#128190; Download my signed Resporg form (PDF)</button>'
       +'<div class="field" style="margin-top:12px"><div class="field-label">Current Invoice</div>'
-      +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'respBillList\')">'
+      +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'respBillList\',\'respBill\')">'
       +'<div class="upload-zone-icon">&#128206;</div><div class="upload-zone-text">Click to upload or drag &amp; drop</div>'
       +'<div class="upload-zone-hint">Attach your current invoice so we can submit it with the port</div></div>'
       +'<ul class="upload-files" id="respBillList"></ul></div></div>';
@@ -724,7 +722,15 @@ function locCard(loc,i){
     +'<div class="field"><label>Zip</label><input class="loc-zip" value="'+e(loc.zip||'')+'"></div></div></div>';
 }
 function addLoc(){save();S.e911Locations.push({label:'',street:'',city:'',state:'',zip:'',extensions:[]});document.getElementById('content').innerHTML=step1();bind();}
-function handleFile(inp,lid){var l=document.getElementById(lid);if(!l)return;l.innerHTML=Array.from(inp.files).map(function(f){return '<li class="upload-file">&#9989; '+f.name+' ('+(f.size/1024).toFixed(0)+'KB)</li>';}).join('');}
+function handleFile(inp,lid,stateKey){
+  var l=document.getElementById(lid);
+  var f=inp.files[0];
+  if(l)l.innerHTML=Array.from(inp.files).map(function(f2){return '<li class="upload-file">&#9989; '+f2.name+' ('+(f2.size/1024).toFixed(0)+'KB)</li>';}).join('');
+  if(!f||!stateKey)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){S[stateKey+'FileData']=ev.target.result;S[stateKey+'FileName']=f.name;};
+  reader.readAsDataURL(f);
+}
 
 /* ===== STEP 2 ===== */
 function step2(){
@@ -782,167 +788,273 @@ function togDesk(sel){
 
 /* ===== STEP 3 ===== */
 
-/* ── Call flow key options ── */
-const CF_KEYS=[
-  {v:'press0',l:'Press 0'},{v:'press1',l:'Press 1'},{v:'press2',l:'Press 2'},
-  {v:'press3',l:'Press 3'},{v:'press4',l:'Press 4'},{v:'press5',l:'Press 5'},
-  {v:'press6',l:'Press 6'},{v:'press7',l:'Press 7'},{v:'press8',l:'Press 8'},
-  {v:'press9',l:'Press 9'},{v:'press_star',l:'Press *'},
-  {v:'no_input',l:'No Input / Timeout'},{v:'direct',l:'Direct (no menu)'},
+/* ── Starter greeting scripts (editable, not AI-generated) ── */
+const GREETING_TEMPLATES=[
+"Thank you for calling [Company Name]. One moment while we connect your call.",
+"Thanks for calling [Company Name] — we're glad you called. Please hold while we get you to the right place.",
+"You've reached [Company Name]. Please stay on the line and we'll be right with you.",
+"Hello, and thank you for calling [Company Name]. Your call is important to us — please hold."
 ];
 
-/* ── Pre-populate defaults first time ── */
-function applySimpleDefaults(){
-if(S.menuMode==='custom')return;
-var exts=S.users.map(function(u){return u.ext;});
-var emails=S.users.map(function(u){return u.email;}).filter(Boolean);
-S.ringGroups=[{id:'rg0',name:'Main Team',members:exts,ringType:'sim',ringDuration:20,noAnswerDest:'vmshared:vm0'}];
-S.sharedVmails=[{id:'vm0',name:'Main Team Voicemail',emailTo:emails,customEmails:[]}];
-S.callFlow=[
-{key:'press1',label:'Speak with our team',dest:'rg:rg0',extNum:''},
-{key:'press9',label:'Hours and location',dest:'hours:',extNum:''},
-{key:'no_input',label:'No Input / Timeout',dest:'vmshared:vm0',extNum:''},
-];
-}
-function setMenuMode(m){
-save();
-if(m==='simple'&&S.menuMode==='custom'){
-S.customBackup={ringGroups:S.ringGroups,sharedVmails:S.sharedVmails,callFlow:S.callFlow};
-}
-S.menuMode=m;
-if(m==='custom'){
-if(S.customBackup){
-S.ringGroups=S.customBackup.ringGroups;
-S.sharedVmails=S.customBackup.sharedVmails;
-S.callFlow=S.customBackup.callFlow;
-}else if(!S.ringGroups||S.ringGroups.length===0){
-var exts=S.users.map(function(u){return u.ext;});
-var emails=S.users.map(function(u){return u.email;}).filter(Boolean);
-S.ringGroups=[{id:'rg0',name:'Main Team',members:exts,ringType:'sim',ringDuration:20,noAnswerDest:'vmshared:vm0'}];
-S.sharedVmails=[{id:'vm0',name:'Main Team Voicemail',emailTo:emails,customEmails:[]}];
-S.callFlow=[
-{key:'press1',label:'Speak with our team',dest:'rg:rg0',extNum:''},
-{key:'press9',label:'Hours and location',dest:'hours:',extNum:''},
-{key:'no_input',label:'No Input / Timeout',dest:'vmshared:vm0',extNum:''},
-];
-}
-}
-render();
-}
-/* ── Destination select (ring groups + extensions + vmails + special) ── */
-function destSel(sel,forNoAnswer){
-  var o='';
-  if(!forNoAnswer){
-    if(S.ringGroups&&S.ringGroups.length){
-      o+='<optgroup label="Ring Groups">';
-      S.ringGroups.forEach(function(rg){var v='rg:'+rg.id;o+='<option value="'+v+'"'+(sel===v?' selected':'')+'>'+e(rg.name)+'</option>';});
-      o+='</optgroup>';
-    }
-    if(S.users&&S.users.length){
-      o+='<optgroup label="Individual Extensions">';
-      S.users.forEach(function(u){var v='ext:'+u.ext;var l=u.ext+(u.fn?' \u2013 '+u.fn+(u.ln?' '+u.ln:''):'');o+='<option value="'+v+'"'+(sel===v?' selected':'')+'>'+e(l)+'</option>';});
-      o+='</optgroup>';
+/* ── Build the canonical number list from Step 1, and keep a routing entry per number ── */
+function refreshNumbers(){
+  var list=[];
+  (S.localNums||'').split(/[\n,;]+/).map(function(s){return s.trim();}).filter(function(s){return s.replace(/\D/g,'').length>=10;}).forEach(function(num,i){
+    list.push({key:'pl'+i,num:num,type:'port-local',carrier:S.localCarrier,authName:S.localAuthName});
+  });
+  (S.tfNums||'').split(/[\n,;]+/).map(function(s){return s.trim();}).filter(function(s){return s.replace(/\D/g,'').length>=10;}).forEach(function(num,i){
+    list.push({key:'pt'+i,num:num,type:'port-tf',carrier:S.tfCarrier,authName:S.tfAuthName});
+  });
+  if(S.getNew){
+    var qty=Math.max(1,parseInt(S.newQty)||1);
+    for(var i=0;i<qty;i++){
+      list.push({key:'nw'+i,num:'New number #'+(i+1)+(S.newPrimaryAC?' (area code '+S.newPrimaryAC+')':''),type:'new',state:S.newState,primaryAC:S.newPrimaryAC,backupAC:S.newBackupAC,qty:1});
     }
   }
-  var vmO='';
-  if(S.sharedVmails&&S.sharedVmails.length) S.sharedVmails.forEach(function(vm){var v='vmshared:'+vm.id;vmO+='<option value="'+v+'"'+(sel===v?' selected':'')+'>'+e(vm.name)+' (shared)</option>';});
-  if(S.users&&S.users.length) S.users.forEach(function(u){var v='vmext:'+u.ext;var l=(u.fn||('Ext '+u.ext))+'\u2019s Voicemail';vmO+='<option value="'+v+'"'+(sel===v?' selected':'')+'>'+e(l)+'</option>';});
-  if(vmO) o+='<optgroup label="Voicemails">'+vmO+'</optgroup>';
-  if(!forNoAnswer){
-    o+='<optgroup label="Special">';
-    o+='<option value="hours:"'+(sel==='hours:'?' selected':'')+'>Hours &amp; Location Info</option>';
-    o+='<option value="external:"'+((sel&&sel.startsWith('external:'))?' selected':'')+'>Forward to External Number\u2026</option>';
-    o+='</optgroup>';
-  } else {
-    o='<option value="">Don\u2019t send to voicemail</option>'+o;
-  }
-  return o;
+  S.numbers=list;
+  if(!S.numberRouting)S.numberRouting={};
+  var keys=list.map(function(n){return n.key;});
+  Object.keys(S.numberRouting).forEach(function(k){if(keys.indexOf(k)<0)delete S.numberRouting[k];});
+  list.forEach(function(n){if(!S.numberRouting[n.key])S.numberRouting[n.key]={mode:'',ext:'',groupId:'',greetingId:'',noAnswer:{type:'vm',vmExt:'',outsideNum:''}};});
+  return list;
 }
 
-/* ── Ring group card ── */
-function renderRG(rg,i){
+/* ── Make sure there's always at least one group and one greeting to point numbers at ── */
+function ensureCallSetupDefaults(){
+  refreshNumbers();
+  if(!S.groups)S.groups=[];
+  if(!S.greetings)S.greetings=[];
+  if(S.groups.length===0){
+    var exts=S.users.map(function(u){return u.ext;});
+    S.groups=[{id:'grp0',name:'Main Team',members:exts,ringType:'sim',ringDuration:20,noAnswer:{type:'vm',vmExt:'',outsideNum:''}}];
+  }
+  if(S.greetings.length===0){
+    var cn=S.cnam||(S.companyName||'').toUpperCase()||'[Company Name]';
+    S.greetings=[{id:'grt0',name:'Main Greeting',script:GREETING_TEMPLATES[0].replace(/\[Company Name\]/g,cn),tplIdx:0}];
+  }
+  (S.numbers||[]).forEach(function(n){
+    var r=S.numberRouting[n.key];
+    if(r&&!r.mode){r.mode='group';r.groupId=S.groups[0].id;}
+  });
+}
+
+/* ── "If no answer" control — shared by groups and by a number routed to one person ── */
+function naBlock(na){
+  na=na||{type:'vm',vmExt:'',outsideNum:''};
+  var selStyle='width:100%;border:1px solid var(--inp-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp);margin-bottom:6px';
+  var userOpts=(S.users||[]).map(function(u){
+    var l=(u.fn||('Ext '+u.ext))+(u.ln?' '+u.ln:'');
+    return '<option value="'+u.ext+'"'+(na.vmExt===u.ext?' selected':'')+'>'+e(l)+'</option>';
+  }).join('');
+  return '<div class="na-wrap">'
+    +'<select class="na-type" style="'+selStyle+'" onchange="naTypeChange(this)">'
+    +'<option value="vm"'+(na.type==='vm'?' selected':'')+'>Go to voicemail</option>'
+    +'<option value="outside"'+(na.type==='outside'?' selected':'')+'>Ring an outside number</option>'
+    +'<option value="uservm"'+(na.type==='uservm'?' selected':'')+'>Another person’s voicemail</option>'
+    +'</select>'
+    +'<input class="na-outside" type="tel" placeholder="(555) 555-5555" value="'+e(na.outsideNum||'')+'" style="'+selStyle+(na.type==='outside'?'':';display:none')+'">'
+    +'<select class="na-uservm" style="'+selStyle+(na.type==='uservm'?'':';display:none')+'"><option value="">Choose person…</option>'+userOpts+'</select>'
+    +'</div>';
+}
+function naTypeChange(sel){
+  var w=sel.closest('.na-wrap');
+  var oi=w.querySelector('.na-outside'),uv=w.querySelector('.na-uservm');
+  if(oi)oi.style.display=sel.value==='outside'?'':'none';
+  if(uv)uv.style.display=sel.value==='uservm'?'':'none';
+}
+function readNaBlock(w){
+  if(!w)return {type:'vm',vmExt:'',outsideNum:''};
+  var t=w.querySelector('.na-type')?w.querySelector('.na-type').value:'vm';
+  return {type:t,outsideNum:w.querySelector('.na-outside')?w.querySelector('.na-outside').value:'',vmExt:w.querySelector('.na-uservm')?w.querySelector('.na-uservm').value:''};
+}
+function naSummary(na){
+  na=na||{type:'vm'};
+  if(na.type==='outside')return 'rings '+(na.outsideNum?e(na.outsideNum):'an outside number you haven’t entered yet');
+  if(na.type==='uservm'){var u=(S.users||[]).find(function(x){return x.ext===na.vmExt;});return u?('goes to '+(u.fn||'their')+'’s voicemail'):'goes to another person’s voicemail (not chosen yet)';}
+  return 'goes to voicemail';
+}
+
+/* ── Greeting cards ── */
+function renderGreeting(g,i){
+  return '<div class="rg-card" data-gri="'+i+'">'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+    +'<input class="grt-name" oninput="onGreetingNameInput(this)" placeholder="Greeting name (e.g. Main Greeting, Sales Line)" value="'+e(g.name||'')+'" style="flex:1;border:1px solid var(--inp-bd);border-radius:7px;padding:8px 12px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp)">'
+    +'<button class="del-btn" onclick="delGreeting(this)" title="Remove">&times;</button></div>'
+    +'<textarea class="grt-script sample-area" rows="4" placeholder="What callers hear when this greeting plays">'+e(g.script||'')+'</textarea>'
+    +'<button type="button" class="add-row-btn" onclick="cycleGreetingTemplate(this,'+i+')" style="margin-top:2px">&#128260; Try another starting point</button>'
+    +'</div>';
+}
+function saveGreetings(){
+  var cards=document.querySelectorAll('#greetingCards .rg-card');
+  if(!cards.length)return;
+  S.greetings=Array.from(cards).map(function(c,i){
+    var existing=S.greetings&&S.greetings[parseInt(c.dataset.gri)];
+    return {
+      id:existing?existing.id:('grt'+Date.now()+'_'+i),
+      name:c.querySelector('.grt-name')?c.querySelector('.grt-name').value:'',
+      script:c.querySelector('.grt-script')?c.querySelector('.grt-script').value:'',
+      tplIdx:existing?(existing.tplIdx||0):0
+    };
+  });
+}
+function addGreeting(){
+  saveGreetings();
+  var cn=S.cnam||(S.companyName||'').toUpperCase()||'[Company Name]';
+  S.greetings.push({id:'grt'+Date.now(),name:'',script:GREETING_TEMPLATES[0].replace(/\[Company Name\]/g,cn),tplIdx:0});
+  document.getElementById('greetingCards').innerHTML=S.greetings.map(renderGreeting).join('');
+  refreshNumRouteUI();
+}
+function delGreeting(btn){
+  btn.closest('.rg-card').remove();saveGreetings();
+  refreshNumRouteUI();
+}
+function cycleGreetingTemplate(btn,i){
+  saveGreetings();
+  var g=S.greetings[i];if(!g)return;
+  g.tplIdx=((g.tplIdx||0)+1)%GREETING_TEMPLATES.length;
+  var cn=S.cnam||(S.companyName||'').toUpperCase()||'[Company Name]';
+  g.script=GREETING_TEMPLATES[g.tplIdx].replace(/\[Company Name\]/g,cn);
+  var card=btn.closest('.rg-card');
+  if(card&&card.querySelector('.grt-script'))card.querySelector('.grt-script').value=g.script;
+}
+
+/* ── Group cards ── */
+function renderGroup(g,i){
   var chips=(S.users||[]).map(function(u){
-    var on=rg.members&&rg.members.indexOf(u.ext)>=0;
-    return '<span class="ext-chip'+(on?' on':'')+'" data-ext="'+u.ext+'" data-rgi="'+i+'" onclick="toggleRGMember(this)">'+u.ext+(u.fn?' \u2013 '+u.fn:'')+'</span>';
+    var on=g.members&&g.members.indexOf(u.ext)>=0;
+    return '<span class="ext-chip'+(on?' on':'')+'" data-ext="'+u.ext+'" onclick="toggleGroupMember(this)">'+u.ext+(u.fn?' – '+u.fn:'')+'</span>';
   }).join('');
   var durOpts=[15,20,25,30].map(function(s){
-    var rings=s===15?'3':s===20?'3\u20134':s===25?'4':'5';
-    return '<option value="'+s+'"'+(rg.ringDuration===s?' selected':'')+'>'+s+' sec \u2248 '+rings+' rings</option>';
+    var rings=s===15?'3':s===20?'3–4':s===25?'4':'5';
+    return '<option value="'+s+'"'+(g.ringDuration===s?' selected':'')+'>'+s+' sec ≈ '+rings+' rings</option>';
   }).join('');
-  return '<div class="rg-card" data-rgi="'+i+'">'
+  return '<div class="rg-card" data-gi="'+i+'">'
     +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
-    +'<input class="rg-name field-inp" placeholder="Ring group name (e.g. Sales Team)" value="'+e(rg.name||'')+'" style="flex:1;border:1px solid var(--inp-bd);border-radius:7px;padding:8px 12px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp)">'
-    +'<button class="del-btn" onclick="delRG(this)" title="Remove">&times;</button></div>'
+    +'<input class="grp-name" oninput="onGroupNameInput(this)" placeholder="Group name (e.g. Sales Team)" value="'+e(g.name||'')+'" style="flex:1;border:1px solid var(--inp-bd);border-radius:7px;padding:8px 12px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp)">'
+    +'<button class="del-btn" onclick="delGroup(this)" title="Remove">&times;</button></div>'
     +'<div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Members <span style="font-weight:400;text-transform:none;opacity:.7">(click to add or remove)</span></div>'
     +(chips||'<span style="font-size:13px;color:var(--tx3);font-style:italic">Add team members in Step 2 first</span>')
-    +'<div class="ext-chips" style="margin-top:8px">'+''+'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-top:14px">'
     +'<div><div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Ring pattern</div>'
     +'<div style="display:flex;gap:6px">'
-    +'<button class="ring-btn'+(rg.ringType==='sim'?' active':'')+'" onclick="setRGRingType(this,\'sim\','+i+')">All at once</button>'
-    +'<button class="ring-btn'+(rg.ringType==='seq'?' active':'')+'" onclick="setRGRingType(this,\'seq\','+i+')">One at a time</button>'
+    +'<button type="button" class="ring-btn'+(g.ringType==='sim'?' active':'')+'" onclick="setGroupRingType(this,\'sim\','+i+')">All at once</button>'
+    +'<button type="button" class="ring-btn'+(g.ringType==='seq'?' active':'')+'" onclick="setGroupRingType(this,\'seq\','+i+')">One at a time</button>'
     +'</div></div>'
     +'<div><div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Ring for</div>'
-    +'<select class="rg-dur" style="width:100%;border:1px solid var(--inp-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp)"><option value="">Select\u2026</option>'+durOpts+'</select></div>'
-    +'<div><div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">If no answer, go to</div>'
-    +'<select class="rg-noans" style="width:100%;border:1px solid var(--inp-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp)"><option value="">Select\u2026</option>'+destSel(rg.noAnswerDest,true)+'</select></div>'
+    +'<select class="grp-dur" style="width:100%;border:1px solid var(--inp-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp)">'+durOpts+'</select></div>'
+    +'<div><div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">If no answer</div>'+naBlock(g.noAnswer)+'</div>'
     +'</div></div>';
 }
-
-/* ── Shared voicemail card ── */
-function renderVM(vm,i){
-  var allEmails=vm.emailTo||[];
-  var userRows=(S.users||[]).filter(function(u){return u.email;}).map(function(u){
-    var chk=allEmails.indexOf(u.email)>=0;
-    return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--tx);padding:5px 0">'
-      +'<input type="checkbox" class="vm-user-chk" data-email="'+e(u.email)+'"'+(chk?' checked':'')+' style="width:15px;height:15px;accent-color:var(--pri);flex-shrink:0">'
-      +e((u.fn||'')+(u.ln?' '+u.ln:'')||('Ext '+u.ext))
-      +'<span style="color:var(--tx3);font-size:12px">&lt;'+e(u.email)+'&gt;</span></label>';
-  }).join('');
-  var customEmails=(vm.customEmails||[]).map(function(em){
-    return '<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(79,138,255,.1);border:1px solid rgba(79,138,255,.25);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--pri)">'
-      +e(em)
-      +'<button onclick="removeVMEmail(this,'+i+',\''+e(em)+'\')" style="background:none;border:none;color:var(--tx3);cursor:pointer;font-size:14px;line-height:1;padding:0">&times;</button></span>';
-  }).join('');
-  return '<div class="vm-card" data-vmi="'+i+'">'
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
-    +'<input class="vm-name" placeholder="Voicemail name (e.g. Sales Voicemail)" value="'+e(vm.name||'')+'" style="flex:1;border:1px solid var(--inp-bd);border-radius:7px;padding:8px 12px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp)">'
-    +'<button class="del-btn" onclick="delVM(this)">&times;</button></div>'
-    +'<div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Email notifications go to</div>'
-    +(userRows||'<span style="font-size:13px;color:var(--tx3);font-style:italic">Add team members in Step 2 to see them here</span>')
-    +(customEmails?'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">'+customEmails+'</div>':'')
-    +'<div style="display:flex;gap:8px;margin-top:10px">'
-    +'<input class="vm-custom-email" type="email" placeholder="Add another email (e.g. sales@company.com)" style="flex:1;border:1px solid var(--inp-bd);border-radius:7px;padding:7px 12px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp)">'
-    +'<button onclick="addVMEmail(this,'+i+')" style="background:rgba(79,138,255,.12);border:1px solid rgba(79,138,255,.3);border-radius:7px;padding:7px 16px;font-size:13px;color:var(--pri);cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap">+ Add</button>'
-    +'</div></div>';
+function saveGroups(){
+  var cards=document.querySelectorAll('#groupCards .rg-card');
+  if(!cards.length)return;
+  S.groups=Array.from(cards).map(function(c,i){
+    var members=Array.from(c.querySelectorAll('.ext-chip.on')).map(function(x){return x.dataset.ext;});
+    var rbtn=c.querySelector('.ring-btn.active');
+    var dur=c.querySelector('.grp-dur');
+    var existing=S.groups&&S.groups[parseInt(c.dataset.gi)];
+    return {
+      id:existing?existing.id:('grp'+Date.now()+'_'+i),
+      name:c.querySelector('.grp-name')?c.querySelector('.grp-name').value:'',
+      members:members,
+      ringType:rbtn?(rbtn.textContent.indexOf('once')>=0?'sim':'seq'):'sim',
+      ringDuration:dur?parseInt(dur.value)||20:20,
+      noAnswer:readNaBlock(c.querySelector('.na-wrap'))
+    };
+  });
 }
+function addGroup(){
+  saveGroups();
+  S.groups.push({id:'grp'+Date.now(),name:'',members:[],ringType:'sim',ringDuration:20,noAnswer:{type:'vm',vmExt:'',outsideNum:''}});
+  document.getElementById('groupCards').innerHTML=S.groups.map(renderGroup).join('');
+  refreshNumRouteUI();
+}
+function delGroup(btn){
+  btn.closest('.rg-card').remove();saveGroups();
+  refreshNumRouteUI();
+}
+function setGroupRingType(btn,type,i){
+  btn.closest('.rg-card').querySelectorAll('.ring-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  saveGroups();
+}
+function toggleGroupMember(chip){chip.classList.toggle('on');saveGroups();}
 
-/* ── Call flow row ── */
-function renderCFRow(cf,i){
-  var keyOpts=CF_KEYS.map(function(k){return '<option value="'+k.v+'"'+(cf.key===k.v?' selected':'')+'>'+k.l+'</option>';}).join('');
-  var isExt=cf.dest&&cf.dest.startsWith('external:');
-  var extNum=isExt?cf.dest.replace('external:',''):(cf.extNum||'');
-  return '<div class="cf-row" data-idx="'+i+'">'
-    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-    +'<select class="cf-key" onchange="saveCFRows()" style="border:1px solid var(--inp-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp);flex-shrink:0">'
-    +keyOpts+'</select>'
-    +'<input class="cf-label" placeholder="What callers hear (e.g. For Sales)" value="'+e(cf.label||'')+'" style="flex:1;min-width:140px;border:1px solid var(--inp-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp)">'
-    +'<span style="color:var(--tx3);font-size:13px;flex-shrink:0">\u2192</span>'
-    +'<select class="cf-dest" onchange="saveCFRows();renderCFExtNum(this,'+i+')" style="flex:1;min-width:160px;border:1px solid var(--inp-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp)">'
-    +'<option value="">Select destination\u2026</option>'+destSel(cf.dest,false)+'</select>'
-    +(isExt?'<input class="cf-extnum" type="tel" placeholder="(555) 555-5555" value="'+e(extNum)+'" style="width:150px;border:1px solid var(--amber-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp)">':'')
-    +'<button class="del-btn" onclick="delCFRow(this)">&times;</button>'
-    +'</div></div>';
+/* ── Per-number routing rows ── */
+function renderNumRoute(n){
+  var r=S.numberRouting[n.key]||{mode:'',ext:'',groupId:'',greetingId:'',noAnswer:{type:'vm',vmExt:'',outsideNum:''}};
+  var tl={'port-local':'Transfer – Local','port-tf':'Transfer – Toll-free','new':'New number'}[n.type]||n.type;
+  var selStyle='border:1px solid var(--inp-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp)';
+  var userOpts=(S.users||[]).map(function(u){var l=(u.fn||('Ext '+u.ext))+(u.ln?' '+u.ln:'');return '<option value="'+u.ext+'"'+(r.ext===u.ext?' selected':'')+'>'+e(l)+'</option>';}).join('');
+  var groupOpts=(S.groups||[]).map(function(g){return '<option value="'+g.id+'"'+(r.groupId===g.id?' selected':'')+'>'+e(g.name||'Unnamed group')+'</option>';}).join('');
+  var greetOpts=(S.greetings||[]).map(function(g){return '<option value="'+g.id+'"'+(r.greetingId===g.id?' selected':'')+'>'+e(g.name||'Unnamed greeting')+'</option>';}).join('');
+  var targetHtml='';
+  if(r.mode==='user')targetHtml='<select class="nr-target nr-user" style="'+selStyle+'"><option value="">Choose person…</option>'+userOpts+'</select>';
+  else if(r.mode==='group')targetHtml=(S.groups&&S.groups.length)?('<select class="nr-target nr-group" style="'+selStyle+'"><option value="">Choose group…</option>'+groupOpts+'</select>'):'<span style="font-size:12px;color:var(--tx3);font-style:italic">Add a group above first</span>';
+  else if(r.mode==='greeting')targetHtml=(S.greetings&&S.greetings.length)?('<select class="nr-target nr-greeting" style="'+selStyle+'"><option value="">Choose greeting…</option>'+greetOpts+'</select>'):'<span style="font-size:12px;color:var(--tx3);font-style:italic">Add a greeting above first</span>';
+  var naHtml=r.mode==='user'?('<div style="margin-top:10px"><div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">If no answer</div>'+naBlock(r.noAnswer)+'</div>'):'';
+  var noteHtml=r.mode==='greeting'?'<div class="ibox amber" style="margin-top:10px;margin-bottom:0"><strong>&#128222; We’ll finish this on a call.</strong>What happens on each key press (press 1, press 2, etc.) for this greeting gets configured together with your onboarding specialist.</div>':'';
+  return '<div class="nr-row" data-nkey="'+n.key+'" style="border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:rgba(255,255,255,.02)">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">'
+    +'<div><div style="font-size:14px;font-weight:700;color:var(--tx)">'+e(n.num)+'</div><div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">'+tl+'</div></div>'
+    +'<select class="nr-mode" style="'+selStyle+'" onchange="numRouteModeChange(this,\''+n.key+'\')">'
+    +'<option value="">Choose how this rings…</option>'
+    +'<option value="user"'+(r.mode==='user'?' selected':'')+'>A specific person</option>'
+    +'<option value="group"'+(r.mode==='group'?' selected':'')+'>A group of people</option>'
+    +'<option value="greeting"'+(r.mode==='greeting'?' selected':'')+'>A greeting / auto-attendant</option>'
+    +'</select></div>'
+    +'<div class="nr-target-wrap">'+targetHtml+'</div>'
+    +naHtml+noteHtml
+    +'</div>';
+}
+function refreshNumRouteUI(){
+  var el=document.getElementById('numRouteRows');
+  if(el)el.innerHTML=(S.numbers||[]).map(renderNumRoute).join('');
+}
+function onGroupNameInput(inp){
+  var i=parseInt(inp.closest('.rg-card').dataset.gi);
+  if(S.groups[i])S.groups[i].name=inp.value;
+  refreshNumRouteUI();
+}
+function onGreetingNameInput(inp){
+  var i=parseInt(inp.closest('.rg-card').dataset.gri);
+  if(S.greetings[i])S.greetings[i].name=inp.value;
+  refreshNumRouteUI();
+}
+function numRouteModeChange(sel,key){
+  saveNumberRouting();
+  if(!S.numberRouting[key])S.numberRouting[key]={mode:'',ext:'',groupId:'',greetingId:'',noAnswer:{type:'vm',vmExt:'',outsideNum:''}};
+  S.numberRouting[key].mode=sel.value;
+  refreshNumRouteUI();
+}
+function saveNumberRouting(){
+  Array.from(document.querySelectorAll('.nr-row')).forEach(function(row){
+    var key=row.dataset.nkey;
+    var mode=row.querySelector('.nr-mode')?row.querySelector('.nr-mode').value:'';
+    var entry=S.numberRouting[key]||{mode:'',ext:'',groupId:'',greetingId:'',noAnswer:{type:'vm',vmExt:'',outsideNum:''}};
+    entry.mode=mode;
+    if(mode==='user'){
+      var us=row.querySelector('.nr-user');if(us)entry.ext=us.value;
+      entry.noAnswer=readNaBlock(row.querySelector('.na-wrap'));
+    }else if(mode==='group'){
+      var gs=row.querySelector('.nr-group');if(gs)entry.groupId=gs.value;
+    }else if(mode==='greeting'){
+      var gr=row.querySelector('.nr-greeting');if(gr)entry.greetingId=gr.value;
+    }
+    S.numberRouting[key]=entry;
+  });
 }
 
 /* ── STEP 3 render ── */
 function step3(){
-applySimpleDefaults();
+ensureCallSetupDefaults();
 
 var _cn=S.cnam||(S.companyName||'').substring(0,15).toUpperCase();
-if(_cn){['mainScript','afterScript','hoursScript'].forEach(function(k){if(S[k]&&S[k].indexOf('[Company Name]')>=0)S[k]=S[k].replace(/\[Company Name\]/g,_cn);});}
-if(S.bizHours){['afterScript','hoursScript'].forEach(function(k){if(S[k]&&S[k].indexOf('[your hours]')>=0)S[k]=S[k].replace(/\[your hours\]/g,S.bizHours);});}
-if(S.bizAddr&&S.hoursScript&&S.hoursScript.indexOf('[your address]')>=0){S.hoursScript=S.hoursScript.replace(/\[your address\]/g,S.bizAddr);}
+if(_cn){
+  if(S.afterScript&&S.afterScript.indexOf('[Company Name]')>=0)S.afterScript=S.afterScript.replace(/\[Company Name\]/g,_cn);
+  (S.greetings||[]).forEach(function(g){if(g.script&&g.script.indexOf('[Company Name]')>=0)g.script=g.script.replace(/\[Company Name\]/g,_cn);});
+}
+if(S.bizHours&&S.afterScript&&S.afterScript.indexOf('[your hours]')>=0){S.afterScript=S.afterScript.replace(/\[your hours\]/g,S.bizHours);}
 
 var summary='<div class="card"><div class="card-title">&#128222; What Happens When Someone Calls</div>'
 +'<div class="card-sub">Here is the full picture in plain English. Update anything below and it updates here too.</div>'
@@ -956,47 +1068,25 @@ var ahCard='<div class="card"><div class="card-title">Hours &amp; After-Hours Ro
 +'<div class="ah-opts">'+ahO('voicemail','&#128236; Go to voicemail')+ahO('forward','&#128242; Ring to cell / forwarding number')+ahO('other','&#128172; Other')+'</div>'
 +'<div id="ahFwdF" class="cond'+(S.ahOpt==='forward'?' show':'')+'"><div class="field"><label>Forwarding number</label><input id="ahFwd" type="tel" placeholder="(555) 555-5555" value="'+e(S.ahFwd)+'"></div></div>'
 +'<div id="ahOthF" class="cond'+(S.ahOpt==='other'?' show':'')+'"><div class="field"><label>Please describe</label><input id="ahOther" placeholder="Describe..." value="'+e(S.ahOther)+'"></div></div>'
++'<div id="ahVmF" class="cond'+(S.ahOpt==='voicemail'?' show':'')+'"><div class="field"><label>After-hours message</label><textarea id="afterScript" rows="4">'+e(S.afterScript)+'</textarea></div></div>'
 +'</div>';
 
-var scripts='<div class="card"><div class="card-title">Your Greeting Scripts</div>'
-+'<div class="card-sub">We already filled these in using your info above. Open this only if you want to customize the wording.</div>'
-+'<button type="button" class="add-row-btn" onclick="uiToggle(\'scriptsBody\')" style="margin-bottom:14px">&#9999;&#65039; Edit greeting scripts</button>'
-+'<div id="scriptsBody" style="display:none">'
-+'<div class="divider">Main Greeting</div>'
-+'<div class="sbox"><span class="sbox-label">&#9999;&#65039; Main greeting (all callers)</span><textarea id="mainScript" rows="6">'+e(S.mainScript)+'</textarea></div>'
-+'<div class="divider">After-Hours Greeting</div>'
-+'<div class="sbox"><span class="sbox-label">&#9999;&#65039; After-hours message</span><textarea id="afterScript" rows="5">'+e(S.afterScript)+'</textarea></div>'
-+'<div class="divider">Hours &amp; Location Greeting</div>'
-+'<div class="sbox"><span class="sbox-label">&#9999;&#65039; Hours &amp; location (Press 9)</span><textarea id="hoursScript" rows="4">'+e(S.hoursScript)+'</textarea></div>'
-+'</div></div>';
+var greetingCards=(S.greetings||[]).map(renderGreeting).join('');
+var greetingsCard='<div class="card"><div class="card-title">Greetings</div>'
++'<div class="card-sub">A greeting is what a caller hears — usually before being routed further. Give it a name and write the script; you can point any number at it below. Menu options within a greeting (press 1, press 2…) get set up together with your onboarding specialist.</div>'
++'<div id="greetingCards">'+greetingCards+'</div>'
++'<button class="add-row-btn" onclick="addGreeting()">+ Add a greeting</button></div>';
 
-var rgCards=(S.ringGroups||[]).map(renderRG).join('');
-var vmCards=(S.sharedVmails||[]).map(renderVM).join('');
-var cfRows=(S.callFlow||[]).map(renderCFRow).join('');
-var isCustom=S.menuMode==='custom';
+var groupCards=(S.groups||[]).map(renderGroup).join('');
+var groupsCard='<div class="card"><div class="card-title">Groups of People</div>'
++'<div class="card-sub">A group rings a set of people together — all at once, or one after another — useful for a sales team, support desk, or any team line. Name it once and route as many numbers to it as you like.</div>'
++'<div id="groupCards">'+groupCards+'</div>'
++'<button class="add-row-btn" onclick="addGroup()">+ Add a group</button></div>';
 
-var routing='<div class="card"><div class="card-title">Who Picks Up Calls</div>'
-+'<div class="card-sub">Choose how calls get routed, or build it yourself.</div>'
-+'<div style="display:flex;gap:6px;margin-bottom:16px">'
-+'<button type="button" class="ring-btn'+(isCustom?'':' active')+'" onclick="setMenuMode(\'simple\')">&#10024; Simple (recommended)</button>'
-+'<button type="button" class="ring-btn'+(isCustom?' active':'')+'" onclick="setMenuMode(\'custom\')">&#128295; Custom</button>'
-+'</div>'
-+(isCustom?(
-'<div class="divider">Ring Groups</div>'
-+'<div class="ibox blue">A ring group is a set of people who all ring when a caller selects an option. Give it a name, pick the members, set the ring pattern and duration, and choose what happens if nobody answers.</div>'
-+'<div id="rgCards">'+rgCards+'</div>'
-+'<button class="add-row-btn" onclick="addRG()" style="margin-bottom:20px">+ Add ring group</button>'
-+'<div class="divider">Shared Voicemails <span style="font-weight:400;opacity:.6;font-size:11px;text-transform:none;letter-spacing:0">(optional)</span></div>'
-+'<div class="ibox blue">A shared voicemail lets multiple people get notified when a message comes in. Useful for a sales inbox, support queue, or any group mailbox.</div>'
-+'<div id="vmCards">'+vmCards+'</div>'
-+'<button class="add-row-btn" onclick="addVM()" style="margin-bottom:20px">+ Add shared voicemail</button>'
-+'<div class="divider">Your Phone Menu</div>'
-+'<div class="ibox amber"><strong>How this works:</strong> Each row is one option in your greeting. Pick the key your caller presses, describe what they hear (e.g. "For Sales"), and choose where the call goes. The dropdown shows all the ring groups and voicemails you just set up above.</div>'
-+'<div id="cfRows">'+cfRows+'</div>'
-+'<button class="add-row-btn" onclick="addCFRow()">+ Add menu option</button>'
-):(
-'<div class="ibox amber">In Simple mode, every call rings your whole team at once. If nobody picks up, the caller leaves a voicemail and the whole team gets emailed. Press 9 always plays your hours and location. Switch to Custom any time to fine-tune this.</div>'
-))
+var numRouteRows=(S.numbers||[]).map(renderNumRoute).join('');
+var numRoutingCard='<div class="card"><div class="card-title">Where Each Number Rings</div>'
++'<div class="card-sub">For every phone number on your account, choose where calls should go.</div>'
++'<div id="numRouteRows">'+(numRouteRows||'<div style="font-size:13px;color:var(--tx3);font-style:italic">Add your phone numbers in Step 1 first.</div>')+'</div>'
 +'</div>';
 
 var vcards=VOICES.map(function(v){
@@ -1008,7 +1098,7 @@ return '<div class="voice-card'+(s?' selected':'')+'" data-v="'+v.name+'" onclic
 }).join('');
 var curV=VOICES.find(function(v){return v.name===S.voice;})||VOICES[0];
 var voices='<div class="card"><div class="card-title">Choose a Voice</div>'
-+'<div class="card-sub">This voice reads your greeting scripts to callers.</div>'
++'<div class="card-sub">This voice reads your greetings to callers.</div>'
 +'<div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap">'
 +'<div id="curVoiceLabel" style="font-size:15px;font-weight:600;color:var(--tx)">'+(curV.gender==='Female'?'&#128105;':'&#128104;')+' Currently: '+curV.name+'</div>'
 +'<button class="play-btn" id="curVoicePlay" onclick="playV(event,\''+curV.name+'\')">&#9654; Preview</button>'
@@ -1020,154 +1110,32 @@ var notesCard='<div class="card"><div class="card-title">Notes for Your Onboardi
 +'<div class="card-sub">Anything else we should know about your setup?</div>'
 +'<div class="field"><textarea id="notes" rows="4" style="width:100%;border:1px solid var(--inp-bd);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp);resize:vertical;line-height:1.6" placeholder="e.g. The owner should always be reachable after hours. We close early on Fridays. Holiday schedule differs...">'+e(S.notes)+'</textarea></div></div>';
 
-return summary+ahCard+scripts+routing+voices+notesCard;
+return summary+ahCard+greetingsCard+groupsCard+numRoutingCard+voices+notesCard;
 }
 
-function destLabel(dest){
-if(!dest)return 'not set yet';
-if(dest.indexOf('rg:')===0){var rg=(S.ringGroups||[]).find(function(x){return x.id===dest.slice(3);});return rg?('the "'+e(rg.name||'Unnamed')+'" team'):'a ring group';}
-if(dest.indexOf('ext:')===0){var ex=dest.slice(4);var u=(S.users||[]).find(function(x){return x.ext===ex;});var nm=u&&u.fn?e(u.fn+(u.ln?' '+u.ln:'')):('extension '+ex);return nm;}
-if(dest.indexOf('vmshared:')===0){var vm=(S.sharedVmails||[]).find(function(x){return x.id===dest.slice(9);});return vm?(e(vm.name||'Unnamed')+' voicemail'):'a shared voicemail';}
-if(dest.indexOf('vmext:')===0){var ex2=dest.slice(6);var u2=(S.users||[]).find(function(x){return x.ext===ex2;});var nm2=u2&&u2.fn?(e(u2.fn)+' voicemail'):('extension '+ex2+' voicemail');return nm2;}
-if(dest==='hours:')return 'your hours and location message';
-if(dest.indexOf('external:')===0)return 'an outside number ('+e(dest.slice(9))+')';
-return e(dest);
-}
 function buildSummaryText(){
-var rows=(S.callFlow||[]).map(function(cf){
-var k=CF_KEYS.find(function(x){return x.v===cf.key;});
-var kl=k?k.l:cf.key;
-var lbl=cf.label?('"'+e(cf.label)+'"'):'this option';
-return '<div style="margin-bottom:6px"><strong>'+kl+'</strong> ('+lbl+') goes to '+destLabel(cf.dest)+'.</div>';
+var rows=(S.numbers||[]).map(function(n){
+var r=S.numberRouting[n.key]||{};
+var dest='hasn’t been set up yet';
+if(r.mode==='user'){
+var u=(S.users||[]).find(function(x){return x.ext===r.ext;});
+dest=u?('rings '+(u.fn||('ext '+u.ext))+(u.ln?' '+u.ln:'')+', then '+naSummary(r.noAnswer)+' if there’s no answer'):'rings a person you haven’t chosen yet';
+}else if(r.mode==='group'){
+var g=(S.groups||[]).find(function(x){return x.id===r.groupId;});
+dest=g?('rings the “'+e(g.name||'Unnamed')+'” group ('+(g.ringType==='sim'?'all at once':'one at a time')+'), then '+naSummary(g.noAnswer)+' if nobody answers'):'rings a group you haven’t chosen yet';
+}else if(r.mode==='greeting'){
+var gr=(S.greetings||[]).find(function(x){return x.id===r.greetingId;});
+dest=gr?('plays the “'+e(gr.name||'Unnamed')+'” greeting (menu options finalized on a call)'):'plays a greeting you haven’t chosen yet';
+}
+return '<div style="margin-bottom:6px"><strong>'+e(n.num)+'</strong> '+dest+'.</div>';
 }).join('');
 var ahText=S.ahOpt==='forward'?('forward to '+(S.ahFwd?e(S.ahFwd):'a number you provide')):S.ahOpt==='other'?(S.ahOther?e(S.ahOther):'a custom option'):'go to voicemail';
-return (rows||'<div style="font-style:italic;opacity:.75">Set up your menu below and it will be summarized here.</div>')
+return (rows||'<div style="font-style:italic;opacity:.75">Add your phone numbers in Step 1, then set up routing below — it’ll be summarized here.</div>')
 +'<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.12)"><strong>After hours:</strong> calls '+ahText+'.</div>';
 }
 function uiToggle(id){
 var el=document.getElementById(id);
 if(el)el.style.display=(el.style.display==='none'?'':'none');
-}
-
-
-
-/* ── Ring group helpers ── */
-function saveRGs(){
-if(S.menuMode!=='custom')return;
-S.ringGroups=Array.from(document.querySelectorAll('.rg-card')).map(function(c,i){
-var members=Array.from(c.querySelectorAll('.ext-chip.on')).map(function(x){return x.dataset.ext;});
-var rbtn=c.querySelector('.ring-btn.active');
-var dur=c.querySelector('.rg-dur');
-var noans=c.querySelector('.rg-noans');
-var existing=S.ringGroups&&S.ringGroups[parseInt(c.dataset.rgi)];
-return {
-id:existing?existing.id:('rg'+Date.now()+'_'+i),
-name:c.querySelector('.rg-name')?c.querySelector('.rg-name').value:'',
-members:members,
-ringType:rbtn?(rbtn.textContent.indexOf('once')>=0?'sim':'seq'):'sim',
-ringDuration:dur?parseInt(dur.value)||20:20,
-noAnswerDest:noans?noans.value:''
-};
-});
-}
-
-function addRG(){
-  saveRGs();saveVMs();
-  S.ringGroups.push({id:'rg'+Date.now(),name:'',members:[],ringType:'sim',ringDuration:20,noAnswerDest:''});
-  document.getElementById('rgCards').innerHTML=(S.ringGroups||[]).map(renderRG).join('');
-}
-function delRG(btn){
-  if(document.querySelectorAll('.rg-card').length<=0)return;
-  btn.closest('.rg-card').remove();saveRGs();
-  document.getElementById('cfRows').innerHTML=(S.callFlow||[]).map(renderCFRow).join('');
-}
-function setRGRingType(btn,type,i){
-  btn.closest('.rg-card').querySelectorAll('.ring-btn').forEach(function(b){b.classList.remove('active');});
-  btn.classList.add('active');
-  if(S.ringGroups&&S.ringGroups[i])S.ringGroups[i].ringType=type;
-}
-function toggleRGMember(chip){chip.classList.toggle('on');saveRGs();}
-
-/* ── Shared voicemail helpers ── */
-function saveVMs(){
-if(S.menuMode!=='custom')return;
-S.sharedVmails=Array.from(document.querySelectorAll('.vm-card')).map(function(c,i){
-var userEmails=Array.from(c.querySelectorAll('.vm-user-chk:checked')).map(function(x){return x.dataset.email;});
-var existing=S.sharedVmails&&S.sharedVmails[parseInt(c.dataset.vmi)];
-var customEmails=existing?existing.customEmails||[]:(S.sharedVmails&&S.sharedVmails[i]?S.sharedVmails[i].customEmails||[]:[]);
-return {
-id:existing?existing.id:('vm'+Date.now()+'_'+i),
-name:c.querySelector('.vm-name')?c.querySelector('.vm-name').value:'',
-emailTo:userEmails.concat(customEmails),
-customEmails:customEmails
-};
-});
-}
-
-function addVM(){
-  saveRGs();saveVMs();
-  S.sharedVmails.push({id:'vm'+Date.now(),name:'',emailTo:[],customEmails:[]});
-  document.getElementById('vmCards').innerHTML=(S.sharedVmails||[]).map(renderVM).join('');
-}
-function delVM(btn){btn.closest('.vm-card').remove();saveVMs();document.getElementById('cfRows').innerHTML=(S.callFlow||[]).map(renderCFRow).join('');}
-function addVMEmail(btn,i){
-  var inp=btn.previousElementSibling;
-  var email=(inp.value||'').trim();
-  if(!email||email.indexOf('@')<0){inp.style.borderColor='var(--red)';return;}
-  inp.style.borderColor='';
-  if(!S.sharedVmails[i])return;
-  if(!S.sharedVmails[i].customEmails)S.sharedVmails[i].customEmails=[];
-  if(S.sharedVmails[i].customEmails.indexOf(email)<0)S.sharedVmails[i].customEmails.push(email);
-  if(S.sharedVmails[i].emailTo.indexOf(email)<0)S.sharedVmails[i].emailTo.push(email);
-  inp.value='';
-  document.getElementById('vmCards').innerHTML=(S.sharedVmails||[]).map(renderVM).join('');
-}
-function removeVMEmail(btn,i,email){
-  if(!S.sharedVmails[i])return;
-  S.sharedVmails[i].customEmails=(S.sharedVmails[i].customEmails||[]).filter(function(e2){return e2!==email;});
-  S.sharedVmails[i].emailTo=(S.sharedVmails[i].emailTo||[]).filter(function(e2){return e2!==email;});
-  document.getElementById('vmCards').innerHTML=(S.sharedVmails||[]).map(renderVM).join('');
-}
-
-/* ── Call flow row helpers ── */
-function saveCFRows(){
-if(S.menuMode!=='custom')return;
-S.callFlow=Array.from(document.querySelectorAll('.cf-row')).map(function(r){
-var dest=r.querySelector('.cf-dest')?r.querySelector('.cf-dest').value:'';
-var extNum=r.querySelector('.cf-extnum')?r.querySelector('.cf-extnum').value:'';
-if(dest==='external:'&&extNum)dest='external:'+extNum;
-return {
-key:r.querySelector('.cf-key')?r.querySelector('.cf-key').value:'',
-label:r.querySelector('.cf-label')?r.querySelector('.cf-label').value:'',
-dest:dest,extNum:extNum
-};
-});
-}
-
-// Remove old saveCF reference - replaced by saveCFRows
-var saveCF=saveCFRows;
-function addCFRow(){
-  saveCFRows();
-  S.callFlow.push({key:'press'+(S.callFlow.length+1),label:'',dest:'',extNum:''});
-  document.getElementById('cfRows').insertAdjacentHTML('beforeend',renderCFRow(S.callFlow[S.callFlow.length-1],S.callFlow.length-1));
-}
-function delCFRow(btn){
-  if(document.querySelectorAll('.cf-row').length<=1)return;
-  btn.closest('.cf-row').remove();saveCFRows();
-}
-function renderCFExtNum(sel,i){
-  var row=sel.closest('.cf-row');
-  var existing=row.querySelector('.cf-extnum');
-  if(sel.value==='external:'){
-    if(!existing){
-      var inp=document.createElement('input');
-      inp.className='cf-extnum';inp.type='tel';inp.placeholder='(555) 555-5555';
-      inp.style.cssText='width:150px;border:1px solid var(--amber-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp)';
-      sel.insertAdjacentElement('afterend',inp);
-    }
-  } else {
-    if(existing)existing.remove();
-  }
 }
 
 /* ── Voice helpers ── */
@@ -1240,6 +1208,7 @@ function rebuildUseGrid(){
 
 /* ===== STEP 5 ===== */
 function step5(){
+  refreshNumbers();
   var hl=S.portLocal,ht=S.portTF;
   var ahLbl={'voicemail':'Go to voicemail','forward':'Forward to '+(S.ahFwd||'\u2014'),'other':S.ahOther||'\u2014'}[S.ahOpt]||'\u2014';
   var nR=S.numbers.map(function(n){
@@ -1267,27 +1236,26 @@ function step5(){
     +'<div class="rv-row"><span class="rv-key">E911 address</span><span class="rv-val">'+e([S.e911Street,S.e911City,S.e911State,S.e911Zip].filter(Boolean).join(', ')||'\u2014')+'</span></div></div>'
     +'<div class="rv-section"><div class="rv-title">&#128101; Users &amp; Extensions</div>'
     +'<table class="rv-tbl"><thead><tr><th>Name</th><th>Email</th><th>Ext</th><th>Device</th><th>Model</th><th>MAC</th><th>Voicemail</th><th>PIN</th><th>E911 Location</th></tr></thead><tbody>'+uR+'</tbody></table></div>'
-    +'<div class="rv-section"><div class="rv-title">&#127897;&#65039; Greetings &amp; Call Flow</div>'
+    +'<div class="rv-section"><div class="rv-title">&#127897;&#65039; Call Routing</div>'
     +'<div class="rv-row"><span class="rv-key">Voice</span><span class="rv-val">'+e(S.voice)+'</span></div>'
-    +S.callFlow.map(function(cf){
-      var kl=CF_KEYS.find(function(k){return k.v===cf.key;});var kn=kl?kl.l:cf.key;
-      var destLbl='';
-      if(cf.dest){
-        if(cf.dest.startsWith('rg:')){var rg=(S.ringGroups||[]).find(function(r){return r.id===cf.dest.replace('rg:','');});destLbl=rg?e(rg.name):'Ring Group';}
-        else if(cf.dest.startsWith('ext:')){var uExt=(S.users||[]).find(function(x){return x.ext===cf.dest.replace('ext:','');});destLbl=uExt?(e(uExt.fn||'')+(uExt.fn?' (Ext '+uExt.ext+')':'Ext '+uExt.ext)):'Extension';}
-        else if(cf.dest.startsWith('vmshared:')){var vmS=(S.sharedVmails||[]).find(function(v){return v.id===cf.dest.replace('vmshared:','');});destLbl=vmS?e(vmS.name)+' (shared voicemail)':'Shared Voicemail';}
-        else if(cf.dest.startsWith('vmext:')){var uVm=(S.users||[]).find(function(x){return x.ext===cf.dest.replace('vmext:','');});destLbl=uVm?(e(uVm.fn||'Ext '+uVm.ext)+' voicemail'):'Voicemail';}
-        else if(cf.dest==='hours:'){destLbl='Hours & Location';}
-        else if(cf.dest.startsWith('external:')){destLbl='External: '+e(cf.dest.replace('external:',''));}
-      }
-      return '<div class="rv-row"><span class="rv-key">'+(cf.label?e(cf.label)+' ('+kn+')':kn)+'</span><span class="rv-val">'+(destLbl||'—')+'</span></div>';
+    +'<table class="rv-tbl" style="margin-top:8px"><thead><tr><th>Number</th><th>Routes to</th></tr></thead><tbody>'
+    +(S.numbers||[]).map(function(n){
+      var r=S.numberRouting[n.key]||{};
+      var destLbl='Not set up yet';
+      if(r.mode==='user'){var u=(S.users||[]).find(function(x){return x.ext===r.ext;});destLbl=u?('Rings '+e((u.fn||'')+(u.ln?' '+u.ln:'')||('Ext '+u.ext))+' (ext '+u.ext+')'):'Rings a person (not chosen)';}
+      else if(r.mode==='group'){var g=(S.groups||[]).find(function(x){return x.id===r.groupId;});destLbl=g?('Rings group “'+e(g.name||'Unnamed')+'”'):'Rings a group (not chosen)';}
+      else if(r.mode==='greeting'){var gr=(S.greetings||[]).find(function(x){return x.id===r.greetingId;});destLbl=gr?('Plays greeting “'+e(gr.name||'Unnamed')+'”'):'Plays a greeting (not chosen)';}
+      return '<tr><td>'+e(n.num)+'</td><td>'+destLbl+'</td></tr>';
     }).join('')
-    +((S.ringGroups&&S.ringGroups.length)?'<div class="rv-row" style="flex-direction:column;align-items:flex-start;gap:5px"><span class="rv-key">Ring Groups</span>'
-      +S.ringGroups.map(function(rg){return '<div style="font-size:12px;color:var(--tx2)"><strong>'+e(rg.name||'Unnamed')+'</strong>: '+(rg.members||[]).join(', ')+' &bull; '+(rg.ringType==='sim'?'all at once':'one at a time')+' &bull; '+rg.ringDuration+'s</div>';}).join('')
+    +'</tbody></table>'
+    +((S.groups&&S.groups.length)?'<div class="rv-row" style="flex-direction:column;align-items:flex-start;gap:5px;margin-top:10px"><span class="rv-key">Groups</span>'
+      +S.groups.map(function(g){return '<div style="font-size:12px;color:var(--tx2)"><strong>'+e(g.name||'Unnamed')+'</strong>: '+(g.members||[]).join(', ')+' &bull; '+(g.ringType==='sim'?'all at once':'one at a time')+' &bull; '+g.ringDuration+'s &bull; no answer: '+naSummary(g.noAnswer)+'</div>';}).join('')
       +'</div>':'')
-    +'<div class="rv-row"><span class="rv-key">After hours</span><span class="rv-val">'+ahLbl+'</span></div>'
-    +'<div class="rv-row"><span class="rv-key">Hours</span><span class="rv-val">'+e(S.bizHours||'\u2014')+'</span></div>'
-    +'<div class="rv-row" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="rv-key">Main greeting</span><div class="rv-script">'+e(S.mainScript)+'</div></div></div>'
+    +((S.greetings&&S.greetings.length)?'<div class="rv-row" style="flex-direction:column;align-items:flex-start;gap:5px;margin-top:10px"><span class="rv-key">Greetings</span>'
+      +S.greetings.map(function(g){return '<div style="font-size:12px;color:var(--tx2);margin-bottom:4px"><strong>'+e(g.name||'Unnamed')+'</strong><div class="rv-script" style="margin-top:3px">'+e(g.script||'')+'</div></div>';}).join('')
+      +'</div>':'')
+    +'<div class="rv-row" style="margin-top:10px"><span class="rv-key">After hours</span><span class="rv-val">'+ahLbl+'</span></div>'
+    +'<div class="rv-row"><span class="rv-key">Hours</span><span class="rv-val">'+e(S.bizHours||'—')+'</span></div></div>'
     +(S.notes?'<div class="rv-section"><div class="rv-title">&#128203; Notes</div><div class="rv-row"><div class="rv-script" style="width:100%">'+e(S.notes)+'</div></div></div>':'')
     +'<div class="rv-section"><div class="rv-title">&#128172; SMS</div>'
     +'<div class="rv-row"><span class="rv-key">SMS enabled</span><span class="rv-val">'+(S.smsOn?'Yes':'No')+'</span></div>'
@@ -1318,13 +1286,22 @@ function showSuccess(){
 }
 
 async function submitData(){
-  var W='YOUR_ZAPIER_WEBHOOK_URL';if(W==='YOUR_ZAPIER_WEBHOOK_URL')return;
-  try{await fetch(W,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({},S,{submittedAt:new Date().toISOString()}))});}catch(err){console.error(err);}
+  // TODO: paste the Zapier "Catch Hook" webhook URL here once Aidel creates it.
+  var W='YOUR_ZAPIER_WEBHOOK_URL';
+  var payload=Object.assign({},S,{submittedAt:new Date().toISOString()});
+  // Auto-generate the signed LOA / Resporg PDFs at submit time (independent of
+  // whether the client used the "Download" buttons in Step 1), so the emailed
+  // copy always reflects exactly what they filled in.
+  if(S.portLocal){var loaBuilt=buildLOADoc();if(loaBuilt){payload.loaPdfBase64=loaBuilt.doc.output('datauristring');payload.loaPdfFilename=loaBuilt.filename;}}
+  if(S.portTF){var respBuilt=buildRespDoc();if(respBuilt){payload.respPdfBase64=respBuilt.doc.output('datauristring');payload.respPdfFilename=respBuilt.filename;}}
+  if(W==='YOUR_ZAPIER_WEBHOOK_URL')return;
+  try{await fetch(W,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(err){console.error(err);}
 }
 
 /* ===== CSV ===== */
 function dlCSV(){
   save();
+  refreshNumbers();
   var dom=gv('ssDomain')||S.ssDomain||'[DOMAIN].service';
   var mn=S.numbers.filter(function(n){return n.type!=='new';}).map(function(n){return n.num.replace(/\D/g,'');}).filter(Boolean)[0]||'';
   var ac=mn.substring(0,3);
@@ -1339,9 +1316,8 @@ function dlCSV(){
 }
 
 /* ===== LOA PDF ===== */
-function genLOA(){
-  save();
-  if(typeof window.jspdf==='undefined'){alert('PDF library not loaded. Check your connection.');return;}
+function buildLOADoc(){
+  if(typeof window.jspdf==='undefined')return null;
   var doc=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
   var today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   // Parse local numbers from textarea
@@ -1369,25 +1345,31 @@ function genLOA(){
   af('City / State / Zip',[S.e911City,S.e911State,S.e911Zip].filter(Boolean).join(', '));
   y+=2;doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Account Details',15,y);y+=6;doc.setFontSize(9);
   af('Main Number on Your Bill',btn);
-  af('Losing Carrier',lns[0]?lns[0].carrier:'');
-  af('Losing Carrier Account Number',lns[0]?lns[0].acctNum:'');
+  af('Losing Carrier',S.localCarrier||'');
+  af('Losing Carrier Account Number',S.localAcctNum||'');
   y+=3;doc.setFont('helvetica','bold');doc.setFontSize(10);
   doc.text('Attachment A \u2014 Numbers to Port',15,y);y+=5;doc.setFont('helvetica','normal');doc.setFontSize(8.5);
   doc.text('Include all numbers on this BTN. Do NOT include toll-free numbers \u2014 use a Resporg for those.',15,y,{maxWidth:180});y+=7;
-  lns.forEach(function(n){if(n.num){doc.text(n.num,15,y);y+=5;}});
+  localNumList.forEach(function(n){if(n){doc.text(n,15,y);y+=5;}});
   y+=4;doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Authorized Signature',15,y);y+=4;
   if(S.loaSigData&&S.loaSigData.length>100){try{doc.addImage(S.loaSigData,'PNG',15,y,90,28);y+=32;}catch(er){doc.line(15,y+15,105,y+15);y+=20;}}
   else{doc.line(15,y+15,105,y+15);y+=20;}
   doc.setFontSize(9);
   af('Date',today);
   af('Print Name',[S.loaSignerFn||S.contactFn,S.loaSignerLn||S.contactLn].filter(Boolean).join(' '));
-  doc.save('UNICOM_LOA_'+(S.companyName||'Form').replace(/[^a-zA-Z0-9]/g,'_')+'_'+new Date().toISOString().split('T')[0]+'.pdf');
+  var filename='UNICOM_LOA_'+(S.companyName||'Form').replace(/[^a-zA-Z0-9]/g,'_')+'_'+new Date().toISOString().split('T')[0]+'.pdf';
+  return {doc:doc,filename:filename};
+}
+function genLOA(){
+  save();
+  var built=buildLOADoc();
+  if(!built){alert('PDF library not loaded. Check your connection.');return;}
+  built.doc.save(built.filename);
 }
 
 /* ===== RESPORG PDF ===== */
-function genResp(){
-  save();
-  if(typeof window.jspdf==='undefined'){alert('PDF library not loaded.');return;}
+function buildRespDoc(){
+  if(typeof window.jspdf==='undefined')return null;
   var doc=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
   var today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   var tfn=(S.tfNums||'').split(/[\n,;]+/).map(function(s){return s.trim();}).filter(function(s){return s.replace(/\D/g,'').length>=10;});
@@ -1421,7 +1403,14 @@ function genResp(){
   af('Print Name',[S.respSignerFn||S.contactFn,S.respSignerLn||S.contactLn].filter(Boolean).join(' '));
   af('Title',S.respTitle);
   af('Date',today);
-  doc.save('UNICOM_Resporg_'+(S.companyName||'Form').replace(/[^a-zA-Z0-9]/g,'_')+'_'+new Date().toISOString().split('T')[0]+'.pdf');
+  var filename='UNICOM_Resporg_'+(S.companyName||'Form').replace(/[^a-zA-Z0-9]/g,'_')+'_'+new Date().toISOString().split('T')[0]+'.pdf';
+  return {doc:doc,filename:filename};
+}
+function genResp(){
+  save();
+  var built=buildRespDoc();
+  if(!built){alert('PDF library not loaded.');return;}
+  built.doc.save(built.filename);
 }
 
 /* ===== SIGNATURE PAD ===== */
@@ -1450,9 +1439,10 @@ function bind(){
       document.querySelectorAll('.ah-opt').forEach(function(x){x.classList.remove('selected');});
       this.classList.add('selected');
       var v=this.querySelector('input').value;
-      var ff=document.getElementById('ahFwdF'),of=document.getElementById('ahOthF');
+      var ff=document.getElementById('ahFwdF'),of=document.getElementById('ahOthF'),vf=document.getElementById('ahVmF');
       if(ff)ff.className='cond'+(v==='forward'?' show':'');
       if(of)of.className='cond'+(v==='other'?' show':'');
+      if(vf)vf.className='cond'+(v==='voicemail'?' show':'');
     });
   });
 }
@@ -1467,11 +1457,11 @@ function autoPopCNAM(inp){
 }
 function updateScriptPlaceholder(name){
   if(!name)return;
-  ['mainScript','afterScript','hoursScript'].forEach(function(id){
-    var el=document.getElementById(id);
-    if(el&&el.value.indexOf('[Company Name]')>=0)el.value=el.value.replace(/\[Company Name\]/g,name);
-    if(S[id]&&S[id].indexOf('[Company Name]')>=0)S[id]=S[id].replace(/\[Company Name\]/g,name);
-  });
+  var el=document.getElementById('afterScript');
+  if(el&&el.value.indexOf('[Company Name]')>=0)el.value=el.value.replace(/\[Company Name\]/g,name);
+  if(S.afterScript&&S.afterScript.indexOf('[Company Name]')>=0)S.afterScript=S.afterScript.replace(/\[Company Name\]/g,name);
+  (S.greetings||[]).forEach(function(g){if(g.script&&g.script.indexOf('[Company Name]')>=0)g.script=g.script.replace(/\[Company Name\]/g,name);});
+  document.querySelectorAll('.grt-script').forEach(function(ta){if(ta.value.indexOf('[Company Name]')>=0)ta.value=ta.value.replace(/\[Company Name\]/g,name);});
 }
 
 loadFromHash();
