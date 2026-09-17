@@ -370,6 +370,7 @@ const S = {
   // New numbers
   newState:'', newPrimaryAC:'', newBackupAC:'', newQty:1, newVanity:false, newVanityPattern:'',
   cnam:'',
+  loaServiceStreet:'',loaServiceCity:'',loaServiceState:'',loaServiceZip:'',
   loaSignerFn:'',loaSignerLn:'',loaSigData:'',loaSigDrawn:false,
   respContactName:'',respContactPhone:'',respStreet:'',respCity:'',respState:'',respZip:'',respCountry:'US',
   respSignerFn:'',respSignerLn:'',respTitle:'',respSigData:'',respSigDrawn:false,
@@ -457,6 +458,8 @@ function save(){
     var nvEl=document.getElementById('newVanity'); if(nvEl) S.newVanity=nvEl.checked;
     S.newVanityPattern=gv('newVanityPattern');
     S.cnam=gv('cnam');
+    S.loaServiceStreet=gv('loaServiceStreet');S.loaServiceCity=gv('loaServiceCity');
+    S.loaServiceState=gv('loaServiceState');S.loaServiceZip=gv('loaServiceZip');
     S.loaSignerFn=gv('loaSignerFn');S.loaSignerLn=gv('loaSignerLn');
     if(sigPads['loaSig'])S.loaSigData=sigPads['loaSig'].data();
     S.respContactName=gv('respContactName');S.respContactPhone=gv('respContactPhone');
@@ -661,6 +664,11 @@ function step1(){
       +'Please also upload a copy of your most recent bill below \u2014 carriers require it to verify account ownership.</div>'
       +'<div class="ibox red" style="margin-bottom:16px"><strong>&#9888;&#65039; Important \u2014 who should sign this?</strong>'
       +'The name on this form must match the <strong>authorized contact on your current carrier account</strong>. If you\'re not that person (e.g. an office manager or IT person is filling this out), please have the account holder sign here. A mismatch is the #1 reason ports get rejected.</div>'
+      +'<div class="field"><label>Service Address <span style="font-weight:400;color:var(--tx2)">(exactly as it appears on your current phone bill \u2014 this is often different from your E911 address below)</span></label><input id="loaServiceStreet" placeholder="123 Main St" value="'+e(S.loaServiceStreet)+'"></div>'
+      +'<div class="field-row3">'
+      +'<div class="field"><label>City</label><input id="loaServiceCity" placeholder="Springfield" value="'+e(S.loaServiceCity)+'"></div>'
+      +'<div class="field"><label>State</label><input id="loaServiceState" placeholder="NJ" maxlength="2" value="'+e(S.loaServiceState)+'"></div>'
+      +'<div class="field"><label>Zip</label><input id="loaServiceZip" placeholder="07081" value="'+e(S.loaServiceZip)+'"></div></div>'
       +'<div class="field-row">'
       +'<div class="field"><label>Authorized Signer \u2014 First Name</label><input id="loaSignerFn" value="'+e(S.loaSignerFn||S.contactFn)+'"><div class="field-hint">Must match the name on your current carrier account</div></div>'
       +'<div class="field"><label>Authorized Signer \u2014 Last Name</label><input id="loaSignerLn" value="'+e(S.loaSignerLn||S.contactLn)+'"></div>'
@@ -1638,8 +1646,8 @@ function buildLOADoc(){
   doc.setFont('helvetica','normal');doc.setFontSize(9);
   function af(l,v){doc.setFont('helvetica','bold');doc.text(l+':',15,y);doc.setFont('helvetica','normal');doc.text(v||'________________________',75,y);y+=7;}
   af('Company Name',S.companyName);
-  af('Service Address',S.e911Street);
-  af('City / State / Zip',[S.e911City,S.e911State,S.e911Zip].filter(Boolean).join(', '));
+  af('Service Address',S.loaServiceStreet);
+  af('City / State / Zip',[S.loaServiceCity,S.loaServiceState,S.loaServiceZip].filter(Boolean).join(', '));
   y+=2;doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('Account Details',15,y);y+=6;doc.setFontSize(9);
   af('Main Number on Your Bill',btn);
   af('Losing Carrier',S.localCarrier||'');
@@ -1752,7 +1760,7 @@ function initSig(id,cid,existing){
 function clrSig(id,cid){if(sigPads[id])sigPads[id].clear();if(id==='loaSig'){S.loaSigData='';S.loaSigDrawn=false;}else{S.respSigData='';S.respSigDrawn=false;}refreshDocBanners();}
 
 /* ===== BIND ===== */
-var DOC_BANNER_FIELD_IDS=['companyName','e911Street','e911City','e911State','e911Zip','localCarrier','localAcctNum','localNums','respStreet','respCity','respState','respZip','tfNums'];
+var DOC_BANNER_FIELD_IDS=['companyName','e911Street','e911City','e911State','e911Zip','loaServiceStreet','loaServiceCity','loaServiceState','loaServiceZip','localCarrier','localAcctNum','localNums','respStreet','respCity','respState','respZip','tfNums'];
 function bindDocBannerLive(){
   var c=document.getElementById('content');
   if(!c||c.__docBannerBound)return;
