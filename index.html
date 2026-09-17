@@ -668,7 +668,7 @@ function step1(){
       +'<div class="field-label">Draw your signature below</div>'
       +'<div class="sig-pad-wrap"><canvas class="sig-canvas" id="loaCvs" width="680" height="120"></canvas>'
       +'<div class="sig-bar"><span>Use mouse or finger to sign</span><button class="sig-clear" onclick="clrSig(\'loaSig\',\'loaCvs\')">Clear</button></div></div>'
-      +(getLoaMissing().length?'<div class="ibox red" style="margin-bottom:12px">&#9888;&#65039; Before downloading: <strong>'+getLoaMissing().map(function(m){return e(m.label);}).join(', ')+'</strong> still '+(getLoaMissing().length===1?'needs':'need')+' to be filled in, or this PDF will have blank lines where a carrier expects your info.</div>':'')
+      +docMissingBannerHtml('loaMissingBanner',getLoaMissing())
       +'<button type="button" class="add-row-btn" onclick="genLOA()" style="margin-bottom:12px">&#128190; Download my signed LOA (PDF)</button>'
       +'<div class="field" style="margin-top:12px"><div class="field-label">Upload your most recent phone bill</div>'
       +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'billList\',\'bill\')">'
@@ -696,7 +696,7 @@ function step1(){
       +'<div class="field-label">Draw your signature below</div>'
       +'<div class="sig-pad-wrap"><canvas class="sig-canvas" id="respCvs" width="680" height="120"></canvas>'
       +'<div class="sig-bar"><span>Use mouse or finger to sign</span><button class="sig-clear" onclick="clrSig(\'respSig\',\'respCvs\')">Clear</button></div></div>'
-      +(getRespMissing().length?'<div class="ibox red" style="margin-bottom:12px">&#9888;&#65039; Before downloading: <strong>'+getRespMissing().map(function(m){return e(m.label);}).join(', ')+'</strong> still '+(getRespMissing().length===1?'needs':'need')+' to be filled in, or this PDF will have blank lines where a carrier expects your info.</div>':'')
+      +docMissingBannerHtml('respMissingBanner',getRespMissing())
       +'<button type="button" class="add-row-btn" onclick="genResp()" style="margin-bottom:12px">&#128190; Download my signed Resporg form (PDF)</button>'
       +'<div class="field" style="margin-top:12px"><div class="field-label">Current Invoice</div>'
       +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'respBillList\',\'respBill\')">'
@@ -717,9 +717,10 @@ function step1(){
     +'<button class="add-row-btn" onclick="addLoc()">+ Add a second location</button></div>';
 
   // CNAM
+  var cnamVal=S.cnam||(S.companyName||'').trim().substring(0,15).toUpperCase();
   h+='<div class="card"><div class="field"><label>Your Caller ID Name</label>'
-    +'<input id="cnam" placeholder="e.g. UNICOM TELECOM (max 15 characters)" maxlength="15" oninput="this.dataset.edited=1;updateScriptPlaceholder(this.value.toUpperCase())" value="'+e(S.cnam)+'">'
-    +'<div class="field-hint">This is your business name as it appears on someone\'s phone when you call them. Max 15 characters.</div></div></div>';
+    +'<input id="cnam" placeholder="e.g. UNICOM TELECOM (max 15 characters)" maxlength="15" oninput="this.dataset.edited=1;updateScriptPlaceholder(this.value.toUpperCase())" value="'+e(cnamVal)+'">'
+    +'<div class="field-hint">This is your business name as it appears on someone\'s phone when you call them. Max 15 characters.'+(!S.cnam&&cnamVal?' Pre-filled from your company name — edit if you\'d like something different.':'')+'</div></div></div>';
 
   return h;
 }
@@ -1586,6 +1587,18 @@ function drawBrandFooter(doc){
   doc.text('UNICOM TELECOM, INC.  \u2022  973-750-4200  \u2022  unicomtelecom.com',108,272,{align:'center'});
   doc.setTextColor(0,0,0);
 }
+function docMissingBannerHtml(id,missing){
+  missing=missing||[];
+  return '<div class="ibox red" id="'+id+'" style="margin-bottom:12px'+(missing.length?'':';display:none')+'">'
+    +(missing.length?'&#9888;&#65039; Before downloading: <strong>'+missing.map(function(m){return e(m.label);}).join(', ')+'</strong> still '+(missing.length===1?'needs':'need')+' to be filled in, or this PDF will have blank lines where a carrier expects your info.':'')
+    +'</div>';
+}
+function refreshDocBanners(){
+  var lb=document.getElementById('loaMissingBanner');
+  if(lb)lb.outerHTML=docMissingBannerHtml('loaMissingBanner',getLoaMissing());
+  var rb=document.getElementById('respMissingBanner');
+  if(rb)rb.outerHTML=docMissingBannerHtml('respMissingBanner',getRespMissing());
+}
 function getLoaMissing(){
   var m=[];
   if(!(S.companyName||'').trim())m.push({label:'Company Name',id:'companyName'});
@@ -1730,18 +1743,30 @@ function initSig(id,cid,existing){
   if(existing&&existing.length>100){var img=new Image();img.onload=function(){ctx.drawImage(img,0,0,w,120);};img.src=existing;}
   var dwg=false;
   function pt(ev){var r=c.getBoundingClientRect(),src=ev.touches?ev.touches[0]:ev;return {x:(src.clientX-r.left)*(c.width/r.width),y:(src.clientY-r.top)*(c.height/r.height)};}
-  c.addEventListener('mousedown',function(ev){dwg=true;S[id+'Drawn']=true;var p=pt(ev);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  c.addEventListener('mousedown',function(ev){dwg=true;S[id+'Drawn']=true;refreshDocBanners();var p=pt(ev);ctx.beginPath();ctx.moveTo(p.x,p.y);});
   c.addEventListener('mousemove',function(ev){if(!dwg)return;var p=pt(ev);ctx.lineTo(p.x,p.y);ctx.stroke();});
   c.addEventListener('mouseup',function(){dwg=false;});c.addEventListener('mouseleave',function(){dwg=false;});
-  c.addEventListener('touchstart',function(ev){ev.preventDefault();dwg=true;S[id+'Drawn']=true;var p=pt(ev);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  c.addEventListener('touchstart',function(ev){ev.preventDefault();dwg=true;S[id+'Drawn']=true;refreshDocBanners();var p=pt(ev);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
   c.addEventListener('touchmove',function(ev){ev.preventDefault();if(!dwg)return;var p=pt(ev);ctx.lineTo(p.x,p.y);ctx.stroke();},{passive:false});
   c.addEventListener('touchend',function(){dwg=false;});
   sigPads[id]={data:function(){return c.toDataURL('image/jpeg',0.92);},clear:function(){ctx.fillStyle='#ffffff';ctx.fillRect(0,0,c.width,c.height);}};
 }
-function clrSig(id,cid){if(sigPads[id])sigPads[id].clear();if(id==='loaSig'){S.loaSigData='';S.loaSigDrawn=false;}else{S.respSigData='';S.respSigDrawn=false;}}
+function clrSig(id,cid){if(sigPads[id])sigPads[id].clear();if(id==='loaSig'){S.loaSigData='';S.loaSigDrawn=false;}else{S.respSigData='';S.respSigDrawn=false;}refreshDocBanners();}
 
 /* ===== BIND ===== */
+var DOC_BANNER_FIELD_IDS=['companyName','e911Street','e911City','e911State','e911Zip','localCarrier','localAcctNum','localNums','respStreet','respCity','respState','respZip','tfNums'];
+function bindDocBannerLive(){
+  var c=document.getElementById('content');
+  if(!c||c.__docBannerBound)return;
+  c.__docBannerBound=true;
+  c.addEventListener('input',function(ev){
+    if(S.step!==0||!ev.target||DOC_BANNER_FIELD_IDS.indexOf(ev.target.id)===-1)return;
+    save();
+    refreshDocBanners();
+  });
+}
 function bind(){
+  bindDocBannerLive();
   document.querySelectorAll('.ah-opt').forEach(function(o){
     o.addEventListener('click',function(){
       document.querySelectorAll('.ah-opt').forEach(function(x){x.classList.remove('selected');});
