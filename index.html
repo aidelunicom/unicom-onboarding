@@ -59,6 +59,11 @@ body::after{content:'';position:fixed;top:-40%;left:-15%;width:55%;height:55%;ba
 .ibox.amber{background:var(--amber-bg);border-color:var(--amber);color:rgba(255,184,0,.9)}
 .ibox.blue{background:rgba(79,138,255,.06);border-color:var(--pri);color:rgba(161,182,247,.9)}
 .ibox.red{background:var(--red-bg);border-color:var(--red);color:rgba(255,100,120,.9)}
+.ibox.green{background:rgba(0,229,160,.07);border-color:var(--green);color:rgba(0,229,160,.95)}
+.ibox.red a,.ibox.green a{color:inherit}
+.nr-row.nr-incomplete{border-color:var(--red)!important;background:rgba(255,64,96,.04)!important}
+@keyframes nrFlash{0%,100%{box-shadow:0 0 0 rgba(255,64,96,0)}30%,70%{box-shadow:0 0 0 4px rgba(255,64,96,.35)}}
+.nr-flash{animation:nrFlash 1s ease-in-out 2}
 .ibox strong{display:block;margin-bottom:4px;font-weight:700}
 
 /* SCRIPT BOX */
@@ -401,7 +406,18 @@ function saveProgress(){
     var t=document.getElementById('saveToast');t.classList.add('show');setTimeout(function(){t.classList.remove('show');},3000);
   }).catch(function(){prompt('Copy this link to resume later:',window.location.href);});
 }
-function go(dir){save();persistState();var n=S.step+dir;if(n<0||n>STEPS.length)return;S.step=n;render();window.scrollTo({top:0,behavior:'smooth'});}
+function go(dir){
+  save();
+  if(dir>0&&S.step===2&&getIncompleteNumbers().length){
+    render();
+    setTimeout(function(){
+      var banner=document.getElementById('numRouteBanner');
+      if(banner){banner.scrollIntoView({behavior:'smooth',block:'center'});banner.classList.add('nr-flash');setTimeout(function(){banner.classList.remove('nr-flash');},2000);}
+    },50);
+    return;
+  }
+  persistState();var n=S.step+dir;if(n<0||n>STEPS.length)return;S.step=n;render();window.scrollTo({top:0,behavior:'smooth'});
+}
 function gv(id){var e=document.getElementById(id);return e?e.value:'';}
 
 function save(){
@@ -988,6 +1004,7 @@ function renderGroup(g,i){
     +'<button class="del-btn" onclick="delGroup(this)" title="Remove">&times;</button></div>'
     +'<div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Members <span style="font-weight:400;text-transform:none;opacity:.7">(click to add or remove)</span></div>'
     +(chips||'<span style="font-size:13px;color:var(--tx3);font-style:italic">Add team members in Step 2 first</span>')
+    +((g.members&&g.members.length)?'':'<div style="margin-top:8px;font-size:12px;color:var(--red);font-weight:600">&#9888;&#65039; No one’s in this group yet — calls sent here won’t ring anyone until you add at least one person.</div>')
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:12px;margin-top:14px">'
     +'<div><div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Ring pattern</div>'
     +'<div style="display:flex;gap:6px">'
@@ -1035,20 +1052,41 @@ function setGroupRingType(btn,type,i){
 function toggleGroupMember(chip){chip.classList.toggle('on');saveGroups();}
 
 /* ── Per-number routing rows ── */
+function isNumRouteIncomplete(r){
+  if(!r||!r.mode)return true;
+  if(r.mode==='user'&&!r.ext)return true;
+  if(r.mode==='group'){
+    if(!r.groupId)return true;
+    var g=(S.groups||[]).find(function(x){return x.id===r.groupId;});
+    if(!g||!g.members||!g.members.length)return true;
+  }
+  if(r.mode==='greeting'&&!r.greetingId)return true;
+  return false;
+}
+function getIncompleteNumbers(){
+  return (S.numbers||[]).filter(function(n){return isNumRouteIncomplete(S.numberRouting[n.key]);});
+}
 function renderNumRoute(n){
   var r=S.numberRouting[n.key]||{mode:'',ext:'',groupId:'',greetingId:'',noAnswer:{type:'vm',vmExt:'',outsideNum:''}};
+  var incomplete=isNumRouteIncomplete(r);
   var tl={'port-local':'Transfer – Local','port-tf':'Transfer – Toll-free','new':'New number'}[n.type]||n.type;
   var selStyle='border:1px solid var(--inp-bd);border-radius:7px;padding:7px 10px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp)';
   var userOpts=(S.users||[]).map(function(u){var l=(u.fn||('Ext '+u.ext))+(u.ln?' '+u.ln:'');return '<option value="'+u.ext+'"'+(r.ext===u.ext?' selected':'')+'>'+e(l)+'</option>';}).join('');
   var groupOpts=(S.groups||[]).map(function(g){return '<option value="'+g.id+'"'+(r.groupId===g.id?' selected':'')+'>'+e(g.name||'Unnamed group')+'</option>';}).join('');
   var greetOpts=(S.greetings||[]).map(function(g){return '<option value="'+g.id+'"'+(r.greetingId===g.id?' selected':'')+'>'+e(g.name||'Unnamed greeting')+'</option>';}).join('');
   var targetHtml='';
-  if(r.mode==='user')targetHtml='<select class="nr-target nr-user" style="'+selStyle+'"><option value="">Choose person…</option>'+userOpts+'</select>';
-  else if(r.mode==='group')targetHtml=(S.groups&&S.groups.length)?('<select class="nr-target nr-group" style="'+selStyle+'"><option value="">Choose group…</option>'+groupOpts+'</select>'):'<span style="font-size:12px;color:var(--tx3);font-style:italic">Add a group above first</span>';
-  else if(r.mode==='greeting')targetHtml=(S.greetings&&S.greetings.length)?('<select class="nr-target nr-greeting" style="'+selStyle+'"><option value="">Choose greeting…</option>'+greetOpts+'</select>'):'<span style="font-size:12px;color:var(--tx3);font-style:italic">Add a greeting above first</span>';
+  if(r.mode==='user')targetHtml='<select class="nr-target nr-user" style="'+selStyle+'" onchange="saveNumberRouting();refreshNumRouteUI();">'
+    +'<option value="">Choose person…</option>'+userOpts+'</select>';
+  else if(r.mode==='group')targetHtml=(S.groups&&S.groups.length)
+    ?('<select class="nr-target nr-group" style="'+selStyle+'" onchange="nrTargetChange(this,\''+n.key+'\')"><option value="">Choose group…</option>'+groupOpts+'<option value="__new__">&#10011; Create a new group…</option></select>')
+    :'<button type="button" class="add-row-btn" onclick="nrQuickAdd(\''+n.key+'\',\'group\')" style="margin-top:2px">+ Create your first group</button>';
+  else if(r.mode==='greeting')targetHtml=(S.greetings&&S.greetings.length)
+    ?('<select class="nr-target nr-greeting" style="'+selStyle+'" onchange="nrTargetChange(this,\''+n.key+'\')"><option value="">Choose greeting…</option>'+greetOpts+'<option value="__new__">&#10011; Create a new greeting…</option></select>')
+    :'<button type="button" class="add-row-btn" onclick="nrQuickAdd(\''+n.key+'\',\'greeting\')" style="margin-top:2px">+ Create your first greeting</button>';
   var naHtml=r.mode==='user'?('<div style="margin-top:10px"><div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">If no answer</div>'+naBlock(r.noAnswer)+'</div>'):'';
   var noteHtml=r.mode==='greeting'?'<div class="ibox amber" style="margin-top:10px;margin-bottom:0"><strong>&#128222; We’ll finish this on a call.</strong>What happens on each key press (press 1, press 2, etc.) for this greeting gets configured together with your onboarding specialist.</div>':'';
-  return '<div class="nr-row" data-nkey="'+n.key+'" style="border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:rgba(255,255,255,.02)">'
+  var warnHtml=incomplete?'<div style="margin-top:10px;font-size:12px;color:var(--red);font-weight:700;display:flex;align-items:center;gap:6px">&#9888;&#65039; Not set up yet — choose where this number should ring, all the way through.</div>':'';
+  return '<div class="nr-row'+(incomplete?' nr-incomplete':'')+'" data-nkey="'+n.key+'" style="border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:rgba(255,255,255,.02)">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">'
     +'<div><div style="font-size:14px;font-weight:700;color:var(--tx)">'+e(n.num)+'</div><div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">'+tl+'</div></div>'
     +'<select class="nr-mode" style="'+selStyle+'" onchange="numRouteModeChange(this,\''+n.key+'\')">'
@@ -1058,12 +1096,62 @@ function renderNumRoute(n){
     +'<option value="greeting"'+(r.mode==='greeting'?' selected':'')+'>A greeting / auto-attendant</option>'
     +'</select></div>'
     +'<div class="nr-target-wrap">'+targetHtml+'</div>'
-    +naHtml+noteHtml
+    +naHtml+noteHtml+warnHtml
     +'</div>';
 }
 function refreshNumRouteUI(){
   var el=document.getElementById('numRouteRows');
   if(el)el.innerHTML=(S.numbers||[]).map(renderNumRoute).join('');
+  var banner=document.getElementById('numRouteBanner');
+  if(banner)banner.outerHTML=numRouteBannerHtml();
+}
+function numRouteBannerHtml(){
+  var incomplete=getIncompleteNumbers();
+  if(!incomplete.length){
+    return '<div class="ibox green" id="numRouteBanner" style="margin-bottom:14px"><strong>&#9989; All set — every number has somewhere to ring.</strong></div>';
+  }
+  var links=incomplete.map(function(n){return '<a onclick="scrollToNumRoute(\''+n.key+'\')" style="text-decoration:underline;cursor:pointer;font-weight:700">'+e(n.num)+'</a>';}).join(', ');
+  return '<div class="ibox red" id="numRouteBanner" style="margin-bottom:14px"><strong>&#9888;&#65039; '+incomplete.length+' of '+(S.numbers||[]).length+' number'+((S.numbers||[]).length===1?'':'s')+' still need'+(incomplete.length===1?'s':'')+' to be finished.</strong>Every number needs somewhere to ring before you can submit: '+links+'.</div>';
+}
+function scrollToNumRoute(key){
+  var row=document.querySelector('.nr-row[data-nkey="'+key+'"]');
+  if(!row)return;
+  row.scrollIntoView({behavior:'smooth',block:'center'});
+  row.classList.add('nr-flash');
+  setTimeout(function(){row.classList.remove('nr-flash');},2000);
+}
+function nrTargetChange(sel,key){
+  if(sel.value==='__new__'){
+    var kind=sel.classList.contains('nr-group')?'group':'greeting';
+    nrQuickAdd(key,kind);
+  }else{
+    saveNumberRouting();
+    refreshNumRouteUI();
+  }
+}
+function nrQuickAdd(key,kind){
+  saveNumberRouting();
+  if(kind==='group'){
+    addGroup();
+    var ng=S.groups[S.groups.length-1];
+    var entry=S.numberRouting[key];
+    if(entry){entry.mode='group';entry.groupId=ng.id;}
+    refreshNumRouteUI();
+    setTimeout(function(){
+      var nameInp=document.querySelector('#groupCards .rg-card:last-child .grp-name');
+      if(nameInp){nameInp.closest('.rg-card').scrollIntoView({behavior:'smooth',block:'center'});nameInp.focus();}
+    },60);
+  }else{
+    addGreeting();
+    var ngr=S.greetings[S.greetings.length-1];
+    var entry=S.numberRouting[key];
+    if(entry){entry.mode='greeting';entry.greetingId=ngr.id;}
+    refreshNumRouteUI();
+    setTimeout(function(){
+      var nameInp=document.querySelector('#greetingCards .rg-card:last-child .grt-name');
+      if(nameInp){nameInp.closest('.rg-card').scrollIntoView({behavior:'smooth',block:'center'});nameInp.focus();}
+    },60);
+  }
 }
 function onGroupNameInput(inp){
   var i=parseInt(inp.closest('.rg-card').dataset.gi);
@@ -1138,8 +1226,9 @@ var groupsCard='<div class="card" id="groupsSection"><div class="card-title">Gro
 +'<button class="add-row-btn" onclick="addGroup()">+ Add a group</button></div>';
 
 var numRouteRows=(S.numbers||[]).map(renderNumRoute).join('');
-var numRoutingCard='<div class="card"><div class="card-title">&#128260; Where Each Number Rings</div>'
-+'<div class="card-sub">Start here — this is the heart of your phone system. For every number on your account, choose what happens the moment a call comes in: ring one specific person, ring a group of people together, or play a greeting/main-menu. Haven’t set up a group or greeting yet? <a onclick="document.getElementById(\'groupsSection\').scrollIntoView({behavior:\'smooth\'})" style="color:var(--pri);cursor:pointer;font-weight:600;text-decoration:underline">Set up a group</a> or <a onclick="document.getElementById(\'greetingsSection\').scrollIntoView({behavior:\'smooth\'})" style="color:var(--pri);cursor:pointer;font-weight:600;text-decoration:underline">a greeting</a> further down this page, then come back up here to point a number at it — everything you build below shows up in the dropdowns here automatically.</div>'
+var numRoutingCard='<div class="card" id="numRoutingSection"><div class="card-title">&#128260; Where Each Number Rings</div>'
++'<div class="card-sub">Start here — this is the heart of your phone system. For every number on your account, choose what happens the moment a call comes in: ring one specific person, ring a group of people together, or play a greeting/main-menu. Picking "A group" or "A greeting" lets you create a brand-new one right here on the spot — no need to leave this card — or you can <a onclick="document.getElementById(\'groupsSection\').scrollIntoView({behavior:\'smooth\'})" style="color:var(--pri);cursor:pointer;font-weight:600;text-decoration:underline">set up groups</a> and <a onclick="document.getElementById(\'greetingsSection\').scrollIntoView({behavior:\'smooth\'})" style="color:var(--pri);cursor:pointer;font-weight:600;text-decoration:underline">greetings</a> further down the page first. Everything you build shows up in the dropdowns here automatically.</div>'
++((S.numbers||[]).length?numRouteBannerHtml():'')
 +'<div id="numRouteRows">'+(numRouteRows||'<div style="font-size:13px;color:var(--tx3);font-style:italic">Add your phone numbers in Step 1 first.</div>')+'</div>'
 +'</div>';
 
@@ -1164,7 +1253,7 @@ var notesCard='<div class="card"><div class="card-title">Notes for Your Onboardi
 +'<div class="card-sub">Anything else we should know about your setup?</div>'
 +'<div class="field"><textarea id="notes" rows="4" style="width:100%;border:1px solid var(--inp-bd);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp);resize:vertical;line-height:1.6" placeholder="e.g. The owner should always be reachable after hours. We close early on Fridays. Holiday schedule differs...">'+e(S.notes)+'</textarea></div></div>';
 
-return summary+numRoutingCard+ahCard+greetingsCard+groupsCard+voices+notesCard;
+return summary+numRoutingCard+ahCard+voices+greetingsCard+groupsCard+notesCard;
 }
 
 function buildSummaryText(){
