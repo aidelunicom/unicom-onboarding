@@ -370,9 +370,9 @@ const S = {
   // New numbers
   newState:'', newPrimaryAC:'', newBackupAC:'', newQty:1, newVanity:false, newVanityPattern:'',
   cnam:'',
-  loaSignerFn:'',loaSignerLn:'',loaSigData:'',
+  loaSignerFn:'',loaSignerLn:'',loaSigData:'',loaSigDrawn:false,
   respContactName:'',respContactPhone:'',respStreet:'',respCity:'',respState:'',respZip:'',respCountry:'US',
-  respSignerFn:'',respSignerLn:'',respTitle:'',respSigData:'',
+  respSignerFn:'',respSignerLn:'',respTitle:'',respSigData:'',respSigDrawn:false,
   e911Street:'',e911City:'',e911State:'',e911Zip:'',e911Locations:[],
   users:[
     {fn:'',ln:'',email:'',ext:'201',dev:'App',model:'',mac:'',vmailPref:'both',pin:'1357',officeLoc:'Primary'},
@@ -408,11 +408,27 @@ function saveProgress(){
 }
 function go(dir){
   save();
+  if(dir>0&&S.step===1&&getTeamBlockers().length){
+    render();
+    setTimeout(function(){
+      var banner=document.getElementById('teamBanner');
+      if(banner){banner.scrollIntoView({behavior:'smooth',block:'center'});banner.classList.add('nr-flash');setTimeout(function(){banner.classList.remove('nr-flash');},2000);}
+    },50);
+    return;
+  }
   if(dir>0&&S.step===2&&getIncompleteNumbers().length){
     render();
     setTimeout(function(){
       var banner=document.getElementById('numRouteBanner');
       if(banner){banner.scrollIntoView({behavior:'smooth',block:'center'});banner.classList.add('nr-flash');setTimeout(function(){banner.classList.remove('nr-flash');},2000);}
+    },50);
+    return;
+  }
+  if(dir>0&&S.step===STEPS.length-1&&getSubmitBlockers().length){
+    render();
+    setTimeout(function(){
+      var el=document.getElementById('submitChecklist');
+      if(el){el.scrollIntoView({behavior:'smooth',block:'start'});el.classList.add('nr-flash');setTimeout(function(){el.classList.remove('nr-flash');},2000);}
     },50);
     return;
   }
@@ -757,9 +773,25 @@ function handleFile(inp,lid,stateKey){
 }
 
 /* ===== STEP 2 ===== */
+function getTeamBlockers(){
+  var msgs=[];
+  var exts=(S.users||[]).map(function(u){return (u.ext||'').trim();});
+  if(exts.some(function(x){return !x;}))msgs.push('One or more team members are missing an extension number.');
+  var seen={},dups=[];
+  exts.forEach(function(x){if(!x)return;if(seen[x])dups.push(x);else seen[x]=1;});
+  dups=dups.filter(function(x,i){return dups.indexOf(x)===i;});
+  if(dups.length)msgs.push('Two or more team members share the same extension ('+dups.join(', ')+') \u2014 each person needs a unique extension.');
+  return msgs;
+}
+function teamBannerHtml(){
+  var msgs=getTeamBlockers();
+  if(!msgs.length)return '';
+  return '<div class="ibox red" id="teamBanner" style="margin-bottom:14px">'+msgs.map(function(m){return '<div style="margin-bottom:4px">&#9888;&#65039; '+e(m)+'</div>';}).join('')+'</div>';
+}
 function step2(){
   return '<div class="card card-wide"><div class="card-title">Your Team</div>'
     +'<div class="card-sub">Add everyone who needs their own business phone line. Each person gets their own extension number \u2014 like a short internal number (e.g. 201) that routes to their phone.</div>'
+    +teamBannerHtml()
     +'<div class="ibox amber"><strong>&#128241; Desk Phone or Mobile App?</strong>Our phone system works on desk phones, a mobile/desktop app, or both. If using a desk phone, we need the model name and a code from the bottom of the phone (called a MAC address). <strong>Ordering phones through UNICOM?</strong> Just leave those fields blank \u2014 we handle it.</div>'
     +'<div class="ibox blue"><strong>&#128274; Voicemail PIN default: 1357</strong>PINs like 1234, 0000, and other common sequences are blocked by the system for security.</div>'
     +'<div class="utbl-toolbar"><a onclick="dlUserTemplate()">&#128190; Download bulk import template</a><span class="sep">&bull;</span><label>&#128228; Upload filled template<input type="file" accept=".csv,.txt" style="display:none" onchange="importUsersCSV(this)"></label><span class="sep">&bull;</span><span style="color:var(--tx3)">Have a lot of people to add? Fill in the template and upload it \u2014 no need to type them one by one.</span></div>'
@@ -1350,6 +1382,44 @@ function rebuildUseGrid(){
 }
 
 /* ===== STEP 5 ===== */
+function goToStep(n){save();S.step=n;render();window.scrollTo({top:0,behavior:'smooth'});}
+function getSubmitBlockers(){
+  var b=[];
+  if(!(S.companyName||'').trim())b.push({msg:'Company name is missing.',step:0});
+  if(!S.portLocal&&!S.portTF&&!S.getNew)b.push({msg:'No phone numbers selected — choose at least one: port existing numbers or get new ones.',step:0});
+  if(S.portLocal){
+    var localList=(S.numbers||[]).filter(function(n){return n.type==='port-local';});
+    if(!localList.length)b.push({msg:'You checked “Transfer my existing local numbers” but haven’t entered any numbers to port.',step:0});
+    if(!(S.localCarrier||'').trim())b.push({msg:'Local port: current carrier is missing.',step:0});
+    if(!(S.localAcctNum||'').trim())b.push({msg:'Local port: account number is missing — carriers require this to process the port.',step:0});
+    if(!S.loaSigDrawn)b.push({msg:'The LOA hasn’t been signed yet — draw your signature in Step 1.',step:0});
+  }
+  if(S.portTF){
+    var tfList=(S.numbers||[]).filter(function(n){return n.type==='port-tf';});
+    if(!tfList.length)b.push({msg:'You checked “Transfer my toll-free numbers” but haven’t entered any numbers to port.',step:0});
+    if(!(S.respStreet||'').trim()||!(S.respCity||'').trim())b.push({msg:'Toll-free authorization: address is incomplete.',step:0});
+    if(!S.respSigDrawn)b.push({msg:'The Resporg form hasn’t been signed yet — draw your signature in Step 1.',step:0});
+  }
+  if(!(S.e911Street||'').trim()||!(S.e911City||'').trim()||!(S.e911State||'').trim()||!(S.e911Zip||'').trim())b.push({msg:'E911 address is incomplete — required by law for emergency dispatch.',step:0});
+  var namedUsers=(S.users||[]).filter(function(u){return (u.fn||'').trim()||(u.ln||'').trim();});
+  if(!namedUsers.length)b.push({msg:'No team members have names entered yet — add at least one person in Your Team.',step:1});
+  getTeamBlockers().forEach(function(m){b.push({msg:m,step:1});});
+  var inc=getIncompleteNumbers().length;
+  if(inc)b.push({msg:inc+' phone number'+(inc===1?'':'s')+' still need'+(inc===1?'s':'')+' to be routed — finish “Where Each Number Rings” in Call Setup.',step:2});
+  return b;
+}
+function getSubmitWarnings(){
+  var w=[];
+  if(S.smsOn){
+    if(!(S.brandName||'').trim()||!(S.brandEIN||'').trim()||!(S.brandAddr||'').trim()||!(S.brandEmail||'').trim()||!(S.brandWebsite||'').trim())w.push({msg:'SMS is on but Brand Registration isn’t fully filled in — carriers need this to approve texting.',step:3});
+    if(!(S.useCases||[]).length)w.push({msg:'SMS is on but no use cases are selected.',step:3});
+  }
+  if(S.portLocal&&!S.billFileData)w.push({msg:'No phone bill uploaded for your local port — carriers typically require this.',step:0});
+  if(S.portTF&&!S.respBillFileData)w.push({msg:'No invoice uploaded for your toll-free transfer.',step:0});
+  var deskMissing=(S.users||[]).filter(function(u){return u.dev==='Desk Phone'&&(!(u.model||'').trim()||!(u.mac||'').trim());}).length;
+  if(deskMissing)w.push({msg:deskMissing+' desk-phone user'+(deskMissing===1?'':'s')+' missing a model or MAC address (leave blank only if UNICOM is shipping the phone).',step:1});
+  return w;
+}
 function step5(){
   refreshNumbers();
   var hl=S.portLocal,ht=S.portTF;
@@ -1367,7 +1437,25 @@ function step5(){
       +'<td>'+({'both':'Both','email':'Email','mailbox':'Mailbox'}[u.vmailPref]||'Both')+'</td>'
       +'<td style="font-family:monospace;font-size:12px">'+e(u.pin||'1357')+'</td></tr>';
   }).join('');
-  return '<div class="card"><div class="card-title">Review &amp; Submit</div>'
+  var blockers=getSubmitBlockers();
+  var warnings=getSubmitWarnings();
+  var checklistHtml;
+  if(blockers.length){
+    checklistHtml='<div class="card" id="submitChecklist"><div class="card-title">&#9888;&#65039; Before You Submit</div>'
+      +'<div class="card-sub">These need to be fixed first — fixing them now avoids delays once your onboarding team reviews this.</div>'
+      +'<div class="ibox red">'+blockers.map(function(b){return '<div style="margin-bottom:6px"><a onclick="goToStep('+b.step+')" style="color:inherit;text-decoration:underline;cursor:pointer;font-weight:700">Fix</a> — '+e(b.msg)+'</div>';}).join('')+'</div>'
+      +(warnings.length?'<div class="ibox amber">'+warnings.map(function(w){return '<div style="margin-bottom:6px">'+e(w.msg)+'</div>';}).join('')+'</div>':'')
+      +'</div>';
+  }else if(warnings.length){
+    checklistHtml='<div class="card" id="submitChecklist"><div class="card-title">&#128269; Worth a Second Look</div>'
+      +'<div class="card-sub">Not blockers — you can submit as-is — but these are common gaps worth checking first.</div>'
+      +'<div class="ibox amber">'+warnings.map(function(w){return '<div style="margin-bottom:6px">'+e(w.msg)+'</div>';}).join('')+'</div>'
+      +'</div>';
+  }else{
+    checklistHtml='<div class="card" id="submitChecklist"><div class="ibox green" style="margin-bottom:0"><strong>&#9989; Everything checks out — ready to submit.</strong></div></div>';
+  }
+  return checklistHtml
+    +'<div class="card"><div class="card-title">Review &amp; Submit</div>'
     +'<div class="card-sub">Review your information. Your onboarding team will be in touch within 1 business day.</div>'
     +'<div class="rv-section"><div class="rv-title">&#127970; Account</div>'
     +'<div class="rv-row"><span class="rv-key">Company</span><span class="rv-val">'+e(S.companyName||'\u2014')+'</span></div>'
@@ -1594,15 +1682,15 @@ function initSig(id,cid,existing){
   if(existing&&existing.length>100){var img=new Image();img.onload=function(){ctx.drawImage(img,0,0,w,120);};img.src=existing;}
   var dwg=false;
   function pt(ev){var r=c.getBoundingClientRect(),src=ev.touches?ev.touches[0]:ev;return {x:(src.clientX-r.left)*(c.width/r.width),y:(src.clientY-r.top)*(c.height/r.height)};}
-  c.addEventListener('mousedown',function(ev){dwg=true;var p=pt(ev);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  c.addEventListener('mousedown',function(ev){dwg=true;S[id+'Drawn']=true;var p=pt(ev);ctx.beginPath();ctx.moveTo(p.x,p.y);});
   c.addEventListener('mousemove',function(ev){if(!dwg)return;var p=pt(ev);ctx.lineTo(p.x,p.y);ctx.stroke();});
   c.addEventListener('mouseup',function(){dwg=false;});c.addEventListener('mouseleave',function(){dwg=false;});
-  c.addEventListener('touchstart',function(ev){ev.preventDefault();dwg=true;var p=pt(ev);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  c.addEventListener('touchstart',function(ev){ev.preventDefault();dwg=true;S[id+'Drawn']=true;var p=pt(ev);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
   c.addEventListener('touchmove',function(ev){ev.preventDefault();if(!dwg)return;var p=pt(ev);ctx.lineTo(p.x,p.y);ctx.stroke();},{passive:false});
   c.addEventListener('touchend',function(){dwg=false;});
   sigPads[id]={data:function(){return c.toDataURL('image/jpeg',0.92);},clear:function(){ctx.fillStyle='#ffffff';ctx.fillRect(0,0,c.width,c.height);}};
 }
-function clrSig(id,cid){if(sigPads[id])sigPads[id].clear();if(id==='loaSig')S.loaSigData='';else S.respSigData='';}
+function clrSig(id,cid){if(sigPads[id])sigPads[id].clear();if(id==='loaSig'){S.loaSigData='';S.loaSigDrawn=false;}else{S.respSigData='';S.respSigDrawn=false;}}
 
 /* ===== BIND ===== */
 function bind(){
