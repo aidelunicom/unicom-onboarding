@@ -1665,7 +1665,7 @@ function genLOA(){
   var missing=getLoaMissing();
   if(missing.length){
     var ok=confirm('This LOA is still missing:\n\n'+missing.map(function(m){return '• '+m.label;}).join('\n')+'\n\nThose will show as blank lines on the PDF, which is the #1 reason carriers reject a port. Download it anyway?');
-    render();
+    refreshDocBanners();
     if(!ok){
       setTimeout(function(){
         var el=document.getElementById(missing[0].id);
@@ -1719,7 +1719,7 @@ function genResp(){
   var missing=getRespMissing();
   if(missing.length){
     var ok=confirm('This Resporg form is still missing:\n\n'+missing.map(function(m){return '• '+m.label;}).join('\n')+'\n\nThose will show as blank lines on the PDF. Download it anyway?');
-    render();
+    refreshDocBanners();
     if(!ok){
       setTimeout(function(){
         var el=document.getElementById(missing[0].id);
