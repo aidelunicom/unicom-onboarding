@@ -285,6 +285,22 @@ body::after{content:'';position:fixed;top:-40%;left:-15%;width:55%;height:55%;ba
   .utbl-toolbar{margin-bottom:14px}
 }
 
+/* LIVE SUMMARY SIDEBAR (step 3 only, wide screens) */
+@media(min-width:1200px){
+  #callsSummaryCard{
+    position:fixed;
+    top:96px;
+    bottom:96px;
+    left:calc(50% + 400px);
+    width:280px;
+    overflow-y:auto;
+    z-index:60;
+    margin-bottom:0;
+  }
+  #callsSummaryCard .card-sub{font-size:12px}
+  #callsSummaryCard .ibox{font-size:12.5px;line-height:1.6}
+}
+
 /* RING GROUPS & VMAILS */
 .rg-card,.vm-card{border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:12px;background:rgba(79,138,255,0.03);transition:border-color .2s}
 .rg-card:hover,.vm-card:hover{border-color:var(--bd-h)}
@@ -664,7 +680,7 @@ function step1(){
       +'Please also upload a copy of your most recent bill below \u2014 carriers require it to verify account ownership.</div>'
       +'<div class="ibox red" style="margin-bottom:16px"><strong>&#9888;&#65039; Important \u2014 who should sign this?</strong>'
       +'The name on this form must match the <strong>authorized contact on your current carrier account</strong>. If you\'re not that person (e.g. an office manager or IT person is filling this out), please have the account holder sign here. A mismatch is the #1 reason ports get rejected.</div>'
-      +'<div class="field"><label>Service Address <span style="font-weight:400;color:var(--tx2)">(exactly as it appears on your current phone bill \u2014 this is often different from your E911 address below)</span></label><input id="loaServiceStreet" placeholder="123 Main St" value="'+e(S.loaServiceStreet)+'"></div>'
+      +'<div class="field"><label>Service Address on your current bill</label><input id="loaServiceStreet" placeholder="123 Main St" value="'+e(S.loaServiceStreet)+'"></div>'
       +'<div class="field-row3">'
       +'<div class="field"><label>City</label><input id="loaServiceCity" placeholder="Springfield" value="'+e(S.loaServiceCity)+'"></div>'
       +'<div class="field"><label>State</label><input id="loaServiceState" placeholder="NJ" maxlength="2" value="'+e(S.loaServiceState)+'"></div>'
@@ -1241,8 +1257,8 @@ if(_cn){
 }
 if(S.bizHours&&S.afterScript&&S.afterScript.indexOf('[your hours]')>=0){S.afterScript=S.afterScript.replace(/\[your hours\]/g,S.bizHours);}
 
-var summary='<div class="card"><div class="card-title">&#128222; What Happens When Someone Calls</div>'
-+'<div class="card-sub">Here is the full picture in plain English. Update anything below and it updates here too.</div>'
+var summary='<div class="card" id="callsSummaryCard"><div class="card-title">&#128222; What Happens When Someone Calls</div>'
++'<div class="card-sub">Live summary — updates instantly as you fill out the sections below.</div>'
 +'<div class="ibox blue">'+buildSummaryText()+'</div></div>';
 
 var ahCard='<div class="card"><div class="card-title">Hours &amp; After-Hours Routing</div>'
@@ -1250,7 +1266,7 @@ var ahCard='<div class="card"><div class="card-title">Hours &amp; After-Hours Ro
 +'<div class="field-row"><div class="field"><label>Business hours</label><input id="bizHours" placeholder="e.g. Mon-Fri 9am-5pm; Sat-Sun Closed" value="'+e(S.bizHours)+'" onchange="save();render()"></div>'
 +'<div class="field"><label>Business address</label><input id="bizAddr" placeholder="123 Main St, Springfield, NJ" value="'+e(S.bizAddr)+'" onchange="save();render()"></div></div>'
 +'<div class="divider">After Hours</div>'
-+'<div class="ah-opts">'+ahO('voicemail','&#128236; Go to voicemail')+ahO('forward','&#128242; Ring to cell / forwarding number')+ahO('other','&#128172; Other')+'</div>'
++'<div class="ah-opts">'+ahO('same','&#128337; Same routing 24/7 (no after-hours difference)')+ahO('voicemail','&#128236; Go to voicemail')+ahO('forward','&#128242; Ring to cell / forwarding number')+ahO('other','&#128172; Other')+'</div>'
 +'<div id="ahFwdF" class="cond'+(S.ahOpt==='forward'?' show':'')+'"><div class="field"><label>Forwarding number</label><input id="ahFwd" type="tel" placeholder="(555) 555-5555" value="'+e(S.ahFwd)+'"></div></div>'
 +'<div id="ahOthF" class="cond'+(S.ahOpt==='other'?' show':'')+'"><div class="field"><label>Please describe</label><input id="ahOther" placeholder="Describe..." value="'+e(S.ahOther)+'"></div></div>'
 +'<div id="ahVmF" class="cond'+(S.ahOpt==='voicemail'?' show':'')+'"><div class="field"><label>After-hours message</label><textarea id="afterScript" rows="4">'+e(S.afterScript)+'</textarea></div></div>'
@@ -1315,7 +1331,7 @@ dest=gr?('plays the “'+e(gr.name||'Unnamed')+'” greeting (menu options final
 }
 return '<div style="margin-bottom:6px"><strong>'+e(n.num)+'</strong> '+dest+'.</div>';
 }).join('');
-var ahText=S.ahOpt==='forward'?('forward to '+(S.ahFwd?e(S.ahFwd):'a number you provide')):S.ahOpt==='other'?(S.ahOther?e(S.ahOther):'a custom option'):'go to voicemail';
+var ahText=S.ahOpt==='same'?'follow the exact same routing as during business hours — 24/7, no separate after-hours handling':S.ahOpt==='forward'?('forward to '+(S.ahFwd?e(S.ahFwd):'a number you provide')):S.ahOpt==='other'?(S.ahOther?e(S.ahOther):'a custom option'):'go to voicemail';
 return (rows||'<div style="font-style:italic;opacity:.75">Add your phone numbers in Step 1, then set up routing below — it’ll be summarized here.</div>')
 +'<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.12)"><strong>After hours:</strong> calls '+ahText+'.</div>';
 }
@@ -1434,7 +1450,7 @@ function getSubmitWarnings(){
 function step5(){
   refreshNumbers();
   var hl=S.portLocal,ht=S.portTF;
-  var ahLbl={'voicemail':'Go to voicemail','forward':'Forward to '+(S.ahFwd||'\u2014'),'other':S.ahOther||'\u2014'}[S.ahOpt]||'\u2014';
+  var ahLbl={'same':'Same routing 24/7 (no after-hours difference)','voicemail':'Go to voicemail','forward':'Forward to '+(S.ahFwd||'\u2014'),'other':S.ahOther||'\u2014'}[S.ahOpt]||'\u2014';
   var nR=S.numbers.map(function(n){
     var tl={'port-local':'Port \u2013 Local','port-tf':'Port \u2013 Toll-free','new':'New number'}[n.type]||n.type;
     var det=n.type==='new'?((n.state||'\u2014')+' / AC:'+(n.primaryAC||'\u2014')+' (backup:'+(n.backupAC||'\u2014')+') qty:'+(n.qty||1)):e(n.num||'\u2014');
