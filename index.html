@@ -1602,8 +1602,6 @@ function refreshDocBanners(){
 function getLoaMissing(){
   var m=[];
   if(!(S.companyName||'').trim())m.push({label:'Company Name',id:'companyName'});
-  if(!(S.e911Street||'').trim())m.push({label:'E911 Street Address',id:'e911Street'});
-  else if(!(S.e911City||'').trim()||!(S.e911State||'').trim()||!(S.e911Zip||'').trim())m.push({label:'E911 City/State/Zip',id:'e911City'});
   if(!(S.localCarrier||'').trim())m.push({label:'Current Carrier',id:'localCarrier'});
   if(!(S.localAcctNum||'').trim())m.push({label:'Account Number',id:'localAcctNum'});
   var localList=(S.localNums||'').split(/[\n,;]+/).map(function(s){return s.trim();}).filter(function(s){return s.replace(/\D/g,'').length>=10;});
