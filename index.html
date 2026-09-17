@@ -1649,6 +1649,13 @@ function splitDataUri(datauri){
 async function submitData(){
   var W='https://hooks.zapier.com/hooks/catch/28885988/4dznowb/';
   var payload=Object.assign({},S,{submittedAt:new Date().toISOString()});
+  // Plain-text, attachment-free version of the whole submission (routing,
+  // greeting scripts in full, PBX import table) — map this field into your
+  // Zap's email body / a chat message / a sheet cell as a companion to (or
+  // fallback for) the PDF attachments, since it can never fail to render the
+  // way a binary attachment can.
+  payload.teamNotificationText=buildTeamNotificationText();
+  payload.pbxImportCsv=pbxCsvString();
   // Auto-generate the signed LOA / Resporg PDFs at submit time (independent of
   // whether the client used the "Download" buttons in Step 1), so the emailed
   // copy always reflects exactly what they filled in.
@@ -1701,20 +1708,87 @@ function downloadSubmittedDoc(kind){
 }
 
 /* ===== CSV ===== */
+/* Shared by the in-page "Download CSV" button and the team-notification payload
+   below, so both always produce the exact same NetSapiens/SkySwitch import format. */
+function pbxCsvString(dom){
+  dom=dom||S.ssDomain||'[DOMAIN].service';
+  var mn=(S.numbers||[]).filter(function(n){return n.type!=='new';}).map(function(n){return n.num.replace(/\D/g,'');}).filter(Boolean)[0]||'';
+  var ac=mn.substring(0,3);
+  var vm={both:'attnew',email:'yes',mailbox:'no'};
+  var hdrs=['extension*','domain','first name*','last name*','login','portal password','email address','voicemail pin','department','site','vmail enabled','answer timeout','timezone','area code','callerid number','callerid name','911 callerid','dial plan','dial permission','audio directory','visual directory','vmail_transcribe','email_vmail','add phone extension','scope'];
+  var rows=(S.users||[]).map(function(u){
+    var login=u.email||(u.ext+'@'+dom);
+    return [u.ext,dom,u.fn,u.ln,login,'',u.email,u.pin||'1357','','','yes','25',S.timezone||'US/Eastern',ac,mn,S.cnam||'',mn,dom,'US and Canada','yes','yes','no',vm[u.vmailPref||'both']||'attnew','yes','Basic User'];
+  });
+  return [hdrs].concat(rows).map(function(r){return r.map(function(f){return '"'+String(f||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+}
 function dlCSV(){
   save();
   refreshNumbers();
   var dom=gv('ssDomain')||S.ssDomain||'[DOMAIN].service';
-  var mn=S.numbers.filter(function(n){return n.type!=='new';}).map(function(n){return n.num.replace(/\D/g,'');}).filter(Boolean)[0]||'';
-  var ac=mn.substring(0,3);
-  var vm={both:'attnew',email:'yes',mailbox:'no'};
-  var hdrs=['extension*','domain','first name*','last name*','login','portal password','email address','voicemail pin','department','site','vmail enabled','answer timeout','timezone','area code','callerid number','callerid name','911 callerid','dial plan','dial permission','audio directory','visual directory','vmail_transcribe','email_vmail','add phone extension','scope'];
-  var rows=S.users.map(function(u){
-    var login=u.email||(u.ext+'@'+dom);
-    return [u.ext,dom,u.fn,u.ln,login,'',u.email,u.pin||'1357','','','yes','25',S.timezone||'US/Eastern',ac,mn,S.cnam||'',mn,dom,'US and Canada','yes','yes','no',vm[u.vmailPref||'both']||'attnew','yes','Basic User'];
-  });
-  var csv=[hdrs].concat(rows).map(function(r){return r.map(function(f){return '"'+String(f||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var csv=pbxCsvString(dom);
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='users_import.csv';a.click();
+}
+/* Plain-text, no-attachment-needed version of the whole submission — every
+   number's routing, every group, every greeting's FULL script, after-hours
+   setup, and the PBX import table — so a Zap can drop this straight into a
+   chat message, a sheet cell, or an email body with zero file-conversion
+   risk, as a reliable companion to (or stand-in for) the PDF attachments. */
+function buildTeamNotificationText(){
+  var L=[];
+  function h(t){L.push('');L.push('== '+t+' ==');}
+  L.push('UNICOM ONBOARDING SUBMISSION — '+(S.companyName||'(no company name)'));
+  L.push('Submitted: '+new Date().toLocaleString('en-US'));
+
+  h('COMPANY & CONTACT');
+  L.push('Company: '+(S.companyName||'—'));
+  L.push('Contact: '+([S.contactFn,S.contactLn].filter(Boolean).join(' ')||'—')+' | '+(S.contactPhone||'—')+' | '+(S.contactEmail||'—'));
+  L.push('Timezone: '+(S.timezone||'—'));
+
+  h('NUMBERS & ROUTING');
+  (S.numbers||[]).forEach(function(n){
+    var r=S.numberRouting[n.key]||{};
+    var dest='not set up yet';
+    if(r.mode==='user'){
+      var u=(S.users||[]).find(function(x){return x.ext===r.ext;});
+      dest=u?('rings '+(u.fn||('ext '+u.ext))+' '+(u.ln||'')+', then '+naSummary(r.noAnswer)+' if no answer'):'rings a person not chosen yet';
+    }else if(r.mode==='group'){
+      var g=(S.groups||[]).find(function(x){return x.id===r.groupId;});
+      dest=g?('rings group "'+(g.name||'Unnamed')+'" ('+(g.ringType==='sim'?'all at once':'one at a time')+'), then '+naSummary(g.noAnswer)+' if no answer'):'rings a group not chosen yet';
+    }else if(r.mode==='greeting'){
+      var gr=(S.greetings||[]).find(function(x){return x.id===r.greetingId;});
+      dest=gr?('plays greeting "'+(gr.name||'Unnamed')+'"'):'plays a greeting not chosen yet';
+    }
+    L.push(n.num+' ('+n.type+'): '+dest);
+  });
+
+  if(S.groups&&S.groups.length){
+    h('GROUPS');
+    S.groups.forEach(function(g){
+      L.push('"'+(g.name||'Unnamed')+'": '+(g.members||[]).join(', ')+' — '+(g.ringType==='sim'?'all at once':'one at a time')+', '+g.ringDuration+'s, no answer: '+naSummary(g.noAnswer));
+    });
+  }
+
+  if(S.greetings&&S.greetings.length){
+    h('GREETING SCRIPTS (ready to record / plug in)');
+    S.greetings.forEach(function(g){
+      L.push('--- "'+(g.name||'Unnamed')+'" ---');
+      L.push(g.script||'(no script written yet)');
+    });
+  }
+
+  h('AFTER HOURS');
+  var ahLbl={'same':'Same routing 24/7 (no after-hours difference)','voicemail':'Go to voicemail','forward':'Forward to '+(S.ahFwd||'—'),'other':S.ahOther||'—'}[S.ahOpt]||'—';
+  L.push(ahLbl);
+  if(S.bizHours)L.push('Business hours: '+S.bizHours);
+  if(S.ahOpt==='voicemail'&&S.afterScript)L.push('After-hours message: '+S.afterScript);
+
+  h('USERS / EXTENSIONS — PBX import (NetSapiens/SkySwitch CSV format, paste directly)');
+  L.push(pbxCsvString());
+
+  if(S.notes){h('NOTES');L.push(S.notes);}
+
+  return L.join('\n');
 }
 
 /* ===== LOA PDF ===== */
