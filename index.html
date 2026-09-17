@@ -1005,7 +1005,7 @@ function naSummary(na){
 
 /* ── Greeting cards ── */
 function renderGreeting(g,i){
-  return '<div class="rg-card" data-gri="'+i+'">'
+  return '<div class="rg-card" data-gri="'+i+'" data-grtid="'+e(g.id)+'">'
     +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
     +'<input class="grt-name" oninput="onGreetingNameInput(this)" placeholder="Greeting name (e.g. Main Greeting, Sales Line)" value="'+e(g.name||'')+'" style="flex:1;border:1px solid var(--inp-bd);border-radius:7px;padding:8px 12px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp)">'
     +'<button class="del-btn" onclick="delGreeting(this)" title="Remove">&times;</button></div>'
@@ -1045,6 +1045,8 @@ function cycleGreetingTemplate(btn,i){
   g.script=GREETING_TEMPLATES[g.tplIdx].replace(/\[Company Name\]/g,cn);
   var card=btn.closest('.rg-card');
   if(card&&card.querySelector('.grt-script'))card.querySelector('.grt-script').value=g.script;
+  if(typeof syncGreetingEverywhere==='function')syncGreetingEverywhere(g.id,undefined,g.script,card?card.querySelector('.grt-script'):null);
+  if(typeof refreshGreetingUsageUI==='function')refreshGreetingUsageUI();
 }
 
 /* ── Group cards ── */
@@ -1119,7 +1121,11 @@ function isNumRouteIncomplete(r){
     var g=(S.groups||[]).find(function(x){return x.id===r.groupId;});
     if(!g||!g.members||!g.members.length)return true;
   }
-  if(r.mode==='greeting'&&!r.greetingId)return true;
+  if(r.mode==='greeting'){
+    if(!r.greetingId)return true;
+    var gr=(S.greetings||[]).find(function(x){return x.id===r.greetingId;});
+    if(!gr||!(gr.script||'').trim())return true;
+  }
   return false;
 }
 function getIncompleteNumbers(){
@@ -1143,8 +1149,19 @@ function renderNumRoute(n){
     ?('<select class="nr-target nr-greeting" style="'+selStyle+'" onchange="nrTargetChange(this,\''+n.key+'\')"><option value="">Choose greeting…</option>'+greetOpts+'<option value="__new__">&#10011; Create a new greeting…</option></select>')
     :'<button type="button" class="add-row-btn" onclick="nrQuickAdd(\''+n.key+'\',\'greeting\')" style="margin-top:2px">+ Create your first greeting</button>';
   var naHtml=r.mode==='user'?('<div style="margin-top:10px"><div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">If no answer</div>'+naBlock(r.noAnswer)+'</div>'):'';
-  var noteHtml=r.mode==='greeting'?'<div class="ibox amber" style="margin-top:10px;margin-bottom:0"><strong>&#128222; We’ll finish this on a call.</strong>What happens on each key press (press 1, press 2, etc.) for this greeting gets configured together with your onboarding specialist.</div>':'';
-  var warnHtml=incomplete?'<div style="margin-top:10px;font-size:12px;color:var(--red);font-weight:700;display:flex;align-items:center;gap:6px">&#9888;&#65039; Not set up yet — choose where this number should ring, all the way through.</div>':'';
+  var selGreeting=r.mode==='greeting'&&r.greetingId?(S.greetings||[]).find(function(x){return x.id===r.greetingId;}):null;
+  var grtHasScript=!!(selGreeting&&(selGreeting.script||'').trim());
+  var grtUsedCount=selGreeting?(S.numbers||[]).filter(function(nn){var rr=S.numberRouting[nn.key];return rr&&rr.mode==='greeting'&&rr.greetingId===selGreeting.id;}).length:0;
+  var grtEditorHtml=selGreeting?(
+    '<div class="nr-grt-editor" data-grtid="'+e(selGreeting.id)+'" style="margin-top:10px;padding:14px;border:1px solid '+(grtHasScript?'var(--bd)':'var(--red)')+';border-radius:10px;background:rgba(255,255,255,.02)">'
+    +'<div style="font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">&#9997;&#65039; Step 1 — what callers hear on this greeting'+(grtUsedCount>1?' <span style="font-weight:400;text-transform:none;opacity:.7">(used on '+grtUsedCount+' numbers — editing here updates all of them)</span>':'')+'</div>'
+    +'<input class="nr-grt-name" data-grtid="'+e(selGreeting.id)+'" oninput="onInlineGreetingInput(this,\'name\')" placeholder="Greeting name (e.g. Main Greeting)" value="'+e(selGreeting.name||'')+'" style="width:100%;margin-bottom:8px;border:1px solid var(--inp-bd);border-radius:7px;padding:8px 12px;font-size:13px;font-family:inherit;color:var(--tx);background:var(--inp);box-sizing:border-box">'
+    +'<textarea class="nr-grt-script sample-area" data-grtid="'+e(selGreeting.id)+'" oninput="onInlineGreetingInput(this,\'script\')" rows="3" placeholder="What callers hear when this greeting plays" style="width:100%;box-sizing:border-box">'+e(selGreeting.script||'')+'</textarea>'
+    +'<div class="nr-grt-missing-warn" style="margin-top:6px;font-size:12px;color:var(--red);font-weight:700;display:'+(grtHasScript?'none':'')+'">&#9888;&#65039; This still needs a script before you can submit.</div>'
+    +'</div>'
+  ):'';
+  var noteHtml=r.mode==='greeting'?'<div class="ibox amber" style="margin-top:10px;margin-bottom:0"><strong>&#128222; Step 2 — finished on a call.</strong>Once the script above is filled in, what happens on each key press (press 1, press 2, etc.) gets set up together with your onboarding specialist.</div>':'';
+  var warnHtml='<div class="nr-row-warn" style="margin-top:10px;font-size:12px;color:var(--red);font-weight:700;display:'+(incomplete?'flex':'none')+';align-items:center;gap:6px">&#9888;&#65039; Not set up yet — choose where this number should ring, all the way through.</div>';
   return '<div class="nr-row'+(incomplete?' nr-incomplete':'')+'" data-nkey="'+n.key+'" style="border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:rgba(255,255,255,.02)">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">'
     +'<div><div style="font-size:14px;font-weight:700;color:var(--tx)">'+e(n.num)+'</div><div style="font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">'+tl+'</div></div>'
@@ -1155,7 +1172,7 @@ function renderNumRoute(n){
     +'<option value="greeting"'+(r.mode==='greeting'?' selected':'')+'>A greeting / auto-attendant</option>'
     +'</select></div>'
     +'<div class="nr-target-wrap">'+targetHtml+'</div>'
-    +naHtml+noteHtml+warnHtml
+    +naHtml+grtEditorHtml+noteHtml+warnHtml
     +'</div>';
 }
 function refreshNumRouteUI(){
@@ -1207,8 +1224,8 @@ function nrQuickAdd(key,kind){
     if(entry){entry.mode='greeting';entry.greetingId=ngr.id;}
     refreshNumRouteUI();
     setTimeout(function(){
-      var nameInp=document.querySelector('#greetingCards .rg-card:last-child .grt-name');
-      if(nameInp){nameInp.closest('.rg-card').scrollIntoView({behavior:'smooth',block:'center'});nameInp.focus();}
+      var nameInp=document.querySelector('.nr-row[data-nkey="'+key+'"] .nr-grt-name');
+      if(nameInp){nameInp.closest('.nr-row').scrollIntoView({behavior:'smooth',block:'center'});nameInp.focus();}
     },60);
   }
 }
@@ -1221,6 +1238,59 @@ function onGreetingNameInput(inp){
   var i=parseInt(inp.closest('.rg-card').dataset.gri);
   if(S.greetings[i])S.greetings[i].name=inp.value;
   refreshNumRouteUI();
+}
+/* Keep every place a greeting's name/script appears in sync as the user types,
+   without a full re-render (which would blow away focus/cursor mid-keystroke). */
+function syncGreetingEverywhere(id,name,script,exceptEl){
+  document.querySelectorAll('.rg-card[data-grtid="'+id+'"]').forEach(function(card){
+    var ni=card.querySelector('.grt-name'),si=card.querySelector('.grt-script');
+    if(ni&&ni!==exceptEl&&name!==undefined)ni.value=name;
+    if(si&&si!==exceptEl&&script!==undefined)si.value=script;
+  });
+  document.querySelectorAll('.nr-grt-editor[data-grtid="'+id+'"]').forEach(function(ed){
+    var ni=ed.querySelector('.nr-grt-name'),si=ed.querySelector('.nr-grt-script');
+    if(ni&&ni!==exceptEl&&name!==undefined)ni.value=name;
+    if(si&&si!==exceptEl&&script!==undefined)si.value=script;
+  });
+  if(name!==undefined){
+    document.querySelectorAll('option[value="'+id+'"]').forEach(function(opt){opt.textContent=name||'Unnamed greeting';});
+  }
+}
+function onInlineGreetingInput(el,field){
+  var id=el.dataset.grtid;
+  var g=(S.greetings||[]).find(function(x){return x.id===id;});
+  if(!g)return;
+  g[field]=el.value;
+  syncGreetingEverywhere(id,field==='name'?el.value:undefined,field==='script'?el.value:undefined,el);
+  if(field==='name'){
+    var sumBox=document.querySelector('#callsSummaryCard .ibox.blue');
+    if(sumBox)sumBox.innerHTML=buildSummaryText();
+  }
+  refreshGreetingUsageUI();
+}
+/* Lightweight refresh of the "not finished yet" indicators across number rows —
+   toggles visibility/border color only, never rebuilds inputs, so it's safe to
+   call on every keystroke without losing focus or cursor position. */
+function refreshGreetingUsageUI(){
+  var banner=document.getElementById('numRouteBanner');
+  if(banner)banner.outerHTML=numRouteBannerHtml();
+  document.querySelectorAll('.nr-row').forEach(function(row){
+    var key=row.dataset.nkey;
+    var r=S.numberRouting[key];
+    if(!r)return;
+    var incomplete=isNumRouteIncomplete(r);
+    row.classList.toggle('nr-incomplete',incomplete);
+    var warnEl=row.querySelector('.nr-row-warn');
+    if(warnEl)warnEl.style.display=incomplete?'flex':'none';
+    if(r.mode==='greeting'&&r.greetingId){
+      var g=(S.greetings||[]).find(function(x){return x.id===r.greetingId;});
+      var hasScript=!!(g&&(g.script||'').trim());
+      var editor=row.querySelector('.nr-grt-editor');
+      if(editor)editor.style.borderColor=hasScript?'var(--bd)':'var(--red)';
+      var missWarn=row.querySelector('.nr-grt-missing-warn');
+      if(missWarn)missWarn.style.display=hasScript?'none':'';
+    }
+  });
 }
 function numRouteModeChange(sel,key){
   saveNumberRouting();
@@ -1312,7 +1382,7 @@ var notesCard='<div class="card"><div class="card-title">Notes for Your Onboardi
 +'<div class="card-sub">Anything else we should know about your setup?</div>'
 +'<div class="field"><textarea id="notes" rows="4" style="width:100%;border:1px solid var(--inp-bd);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp);resize:vertical;line-height:1.6" placeholder="e.g. The owner should always be reachable after hours. We close early on Fridays. Holiday schedule differs...">'+e(S.notes)+'</textarea></div></div>';
 
-return summary+numRoutingCard+ahCard+voices+greetingsCard+groupsCard+notesCard;
+return summary+numRoutingCard+voices+greetingsCard+groupsCard+notesCard+ahCard;
 }
 
 function buildSummaryText(){
@@ -1547,14 +1617,45 @@ function showSuccess(){
     +'</div></div>';
 }
 
+/* jsPDF's 'datauristring' output is a full data: URI (e.g.
+   "data:application/pdf;filename=x.pdf;base64,JVBERi0..."), NOT pure base64.
+   Zaps that map a webhook's "...Base64" field straight into an email
+   attachment usually expect the raw base64 payload with no data: prefix —
+   the embedded "data:application/pdf;filename=...;base64," header text is
+   enough to break that decode and silently produce a missing/blank
+   attachment. Send both forms so whichever the Zap step expects works. */
+function splitDataUri(datauri){
+  var i=(datauri||'').indexOf(',');
+  return i>=0?datauri.substring(i+1):(datauri||'');
+}
 async function submitData(){
   var W='https://hooks.zapier.com/hooks/catch/28885988/4dznowb/';
   var payload=Object.assign({},S,{submittedAt:new Date().toISOString()});
   // Auto-generate the signed LOA / Resporg PDFs at submit time (independent of
   // whether the client used the "Download" buttons in Step 1), so the emailed
   // copy always reflects exactly what they filled in.
-  if(S.portLocal){var loaBuilt=buildLOADoc();if(loaBuilt){payload.loaPdfBase64=loaBuilt.doc.output('datauristring');payload.loaPdfFilename=loaBuilt.filename;lastSubmittedDocs.loa=loaBuilt;}}
-  if(S.portTF){var respBuilt=buildRespDoc();if(respBuilt){payload.respPdfBase64=respBuilt.doc.output('datauristring');payload.respPdfFilename=respBuilt.filename;lastSubmittedDocs.resp=respBuilt;}}
+  if(S.portLocal){
+    var loaBuilt=buildLOADoc();
+    if(loaBuilt){
+      var loaDataUri=loaBuilt.doc.output('datauristring');
+      payload.loaPdfBase64=splitDataUri(loaDataUri);
+      payload.loaPdfDataUri=loaDataUri;
+      payload.loaPdfMimeType='application/pdf';
+      payload.loaPdfFilename=loaBuilt.filename;
+      lastSubmittedDocs.loa=loaBuilt;
+    }
+  }
+  if(S.portTF){
+    var respBuilt=buildRespDoc();
+    if(respBuilt){
+      var respDataUri=respBuilt.doc.output('datauristring');
+      payload.respPdfBase64=splitDataUri(respDataUri);
+      payload.respPdfDataUri=respDataUri;
+      payload.respPdfMimeType='application/pdf';
+      payload.respPdfFilename=respBuilt.filename;
+      lastSubmittedDocs.resp=respBuilt;
+    }
+  }
   if(!W)return;
   try{await fetch(W,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(err){console.error(err);}
 }
