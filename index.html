@@ -843,7 +843,11 @@ const GREETING_TEMPLATES=[
 "Thank you for calling [Company Name]. One moment while we connect your call.",
 "Thanks for calling [Company Name] — we're glad you called. Please hold while we get you to the right place.",
 "You've reached [Company Name]. Please stay on the line and we'll be right with you.",
-"Hello, and thank you for calling [Company Name]. Your call is important to us — please hold."
+"Hello, and thank you for calling [Company Name]. Your call is important to us — please hold.",
+"Thank you for calling [Company Name]. For Sales, press 1. For Customer Support, press 2. For Billing, press 3. To reach our main office, press 0, or stay on the line.",
+"Thank you for calling [Company Name]. If you know your party's extension, you may dial it at any time. For Sales, press 1. For Support, press 2. For all other calls, press 3.",
+"Welcome to [Company Name]. Our hours are [your hours]. For New Customers, press 1. For Existing Customers, press 2. For our Billing Department, press 3. To speak with the next available representative, press 4.",
+"Thank you for calling [Company Name]. Press 1 for Sales. Press 2 for Service and Support. Press 3 for Billing and Accounts. Press 9 to repeat this menu, or press 0 for the operator."
 ];
 
 /* ── Build the canonical number list from Step 1, and keep a routing entry per number ── */
@@ -1122,20 +1126,20 @@ var ahCard='<div class="card"><div class="card-title">Hours &amp; After-Hours Ro
 +'</div>';
 
 var greetingCards=(S.greetings||[]).map(renderGreeting).join('');
-var greetingsCard='<div class="card"><div class="card-title">Greetings</div>'
-+'<div class="card-sub">A greeting is what a caller hears — usually before being routed further. Give it a name and write the script; you can point any number at it below. Menu options within a greeting (press 1, press 2…) get set up together with your onboarding specialist.</div>'
+var greetingsCard='<div class="card" id="greetingsSection"><div class="card-title">Greetings &amp; Main Menu Scripts</div>'
++'<div class="card-sub">A greeting is what a caller hears — either a simple "please hold" message, or a full main-menu script with press-1/press-2 options. Give it a name, write (or edit) the script, then point any number at it in "Where Each Number Rings" above. Click "Try another starting point" to cycle through both simple hold messages and ready-made menu scripts — everything is fully editable. The actual call routing behind each key press (what press 1 vs. press 2 does) gets wired up together with your onboarding specialist.</div>'
 +'<div id="greetingCards">'+greetingCards+'</div>'
 +'<button class="add-row-btn" onclick="addGreeting()">+ Add a greeting</button></div>';
 
 var groupCards=(S.groups||[]).map(renderGroup).join('');
-var groupsCard='<div class="card"><div class="card-title">Groups of People</div>'
-+'<div class="card-sub">A group rings a set of people together — all at once, or one after another — useful for a sales team, support desk, or any team line. Name it once and route as many numbers to it as you like.</div>'
+var groupsCard='<div class="card" id="groupsSection"><div class="card-title">Groups of People</div>'
++'<div class="card-sub">A group rings a set of people together — all at once, or one after another — useful for a sales team, support desk, or any team line. Name it once, then point any number at it in "Where Each Number Rings" above.</div>'
 +'<div id="groupCards">'+groupCards+'</div>'
 +'<button class="add-row-btn" onclick="addGroup()">+ Add a group</button></div>';
 
 var numRouteRows=(S.numbers||[]).map(renderNumRoute).join('');
-var numRoutingCard='<div class="card"><div class="card-title">Where Each Number Rings</div>'
-+'<div class="card-sub">For every phone number on your account, choose where calls should go.</div>'
+var numRoutingCard='<div class="card"><div class="card-title">&#128260; Where Each Number Rings</div>'
++'<div class="card-sub">Start here — this is the heart of your phone system. For every number on your account, choose what happens the moment a call comes in: ring one specific person, ring a group of people together, or play a greeting/main-menu. Haven’t set up a group or greeting yet? <a onclick="document.getElementById(\'groupsSection\').scrollIntoView({behavior:\'smooth\'})" style="color:var(--pri);cursor:pointer;font-weight:600;text-decoration:underline">Set up a group</a> or <a onclick="document.getElementById(\'greetingsSection\').scrollIntoView({behavior:\'smooth\'})" style="color:var(--pri);cursor:pointer;font-weight:600;text-decoration:underline">a greeting</a> further down this page, then come back up here to point a number at it — everything you build below shows up in the dropdowns here automatically.</div>'
 +'<div id="numRouteRows">'+(numRouteRows||'<div style="font-size:13px;color:var(--tx3);font-style:italic">Add your phone numbers in Step 1 first.</div>')+'</div>'
 +'</div>';
 
@@ -1160,7 +1164,7 @@ var notesCard='<div class="card"><div class="card-title">Notes for Your Onboardi
 +'<div class="card-sub">Anything else we should know about your setup?</div>'
 +'<div class="field"><textarea id="notes" rows="4" style="width:100%;border:1px solid var(--inp-bd);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;color:var(--tx);background:var(--inp);resize:vertical;line-height:1.6" placeholder="e.g. The owner should always be reachable after hours. We close early on Fridays. Holiday schedule differs...">'+e(S.notes)+'</textarea></div></div>';
 
-return summary+ahCard+greetingsCard+groupsCard+numRoutingCard+voices+notesCard;
+return summary+numRoutingCard+ahCard+greetingsCard+groupsCard+voices+notesCard;
 }
 
 function buildSummaryText(){
