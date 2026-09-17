@@ -668,6 +668,7 @@ function step1(){
       +'<div class="field-label">Draw your signature below</div>'
       +'<div class="sig-pad-wrap"><canvas class="sig-canvas" id="loaCvs" width="680" height="120"></canvas>'
       +'<div class="sig-bar"><span>Use mouse or finger to sign</span><button class="sig-clear" onclick="clrSig(\'loaSig\',\'loaCvs\')">Clear</button></div></div>'
+      +(getLoaMissing().length?'<div class="ibox red" style="margin-bottom:12px">&#9888;&#65039; Before downloading: <strong>'+getLoaMissing().map(function(m){return e(m.label);}).join(', ')+'</strong> still '+(getLoaMissing().length===1?'needs':'need')+' to be filled in, or this PDF will have blank lines where a carrier expects your info.</div>':'')
       +'<button type="button" class="add-row-btn" onclick="genLOA()" style="margin-bottom:12px">&#128190; Download my signed LOA (PDF)</button>'
       +'<div class="field" style="margin-top:12px"><div class="field-label">Upload your most recent phone bill</div>'
       +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'billList\',\'bill\')">'
@@ -695,6 +696,7 @@ function step1(){
       +'<div class="field-label">Draw your signature below</div>'
       +'<div class="sig-pad-wrap"><canvas class="sig-canvas" id="respCvs" width="680" height="120"></canvas>'
       +'<div class="sig-bar"><span>Use mouse or finger to sign</span><button class="sig-clear" onclick="clrSig(\'respSig\',\'respCvs\')">Clear</button></div></div>'
+      +(getRespMissing().length?'<div class="ibox red" style="margin-bottom:12px">&#9888;&#65039; Before downloading: <strong>'+getRespMissing().map(function(m){return e(m.label);}).join(', ')+'</strong> still '+(getRespMissing().length===1?'needs':'need')+' to be filled in, or this PDF will have blank lines where a carrier expects your info.</div>':'')
       +'<button type="button" class="add-row-btn" onclick="genResp()" style="margin-bottom:12px">&#128190; Download my signed Resporg form (PDF)</button>'
       +'<div class="field" style="margin-top:12px"><div class="field-label">Current Invoice</div>'
       +'<div class="upload-zone"><input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(this,\'respBillList\',\'respBill\')">'
@@ -1584,6 +1586,28 @@ function drawBrandFooter(doc){
   doc.text('UNICOM TELECOM, INC.  \u2022  973-750-4200  \u2022  unicomtelecom.com',108,272,{align:'center'});
   doc.setTextColor(0,0,0);
 }
+function getLoaMissing(){
+  var m=[];
+  if(!(S.companyName||'').trim())m.push({label:'Company Name',id:'companyName'});
+  if(!(S.e911Street||'').trim())m.push({label:'E911 Street Address',id:'e911Street'});
+  else if(!(S.e911City||'').trim()||!(S.e911State||'').trim()||!(S.e911Zip||'').trim())m.push({label:'E911 City/State/Zip',id:'e911City'});
+  if(!(S.localCarrier||'').trim())m.push({label:'Current Carrier',id:'localCarrier'});
+  if(!(S.localAcctNum||'').trim())m.push({label:'Account Number',id:'localAcctNum'});
+  var localList=(S.localNums||'').split(/[\n,;]+/).map(function(s){return s.trim();}).filter(function(s){return s.replace(/\D/g,'').length>=10;});
+  if(!localList.length)m.push({label:'Numbers to Port',id:'localNums'});
+  if(!S.loaSigDrawn)m.push({label:'Your Signature',id:'loaCvs'});
+  return m;
+}
+function getRespMissing(){
+  var m=[];
+  if(!(S.companyName||'').trim())m.push({label:'Company Name',id:'companyName'});
+  if(!((S.respStreet||S.e911Street)||'').trim())m.push({label:'Street Address',id:'respStreet'});
+  else if(!((S.respCity||S.e911City)||'').trim()||!((S.respState||S.e911State)||'').trim()||!((S.respZip||S.e911Zip)||'').trim())m.push({label:'City/State/Zip',id:'respCity'});
+  var tfn=(S.tfNums||'').split(/[\n,;]+/).map(function(s){return s.trim();}).filter(function(s){return s.replace(/\D/g,'').length>=10;});
+  if(!tfn.length)m.push({label:'Toll-Free Numbers',id:'tfNums'});
+  if(!S.respSigDrawn)m.push({label:'Your Signature',id:'respCvs'});
+  return m;
+}
 function buildLOADoc(){
   if(typeof window.jspdf==='undefined')return null;
   var doc=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
@@ -1625,6 +1649,18 @@ function buildLOADoc(){
 }
 function genLOA(){
   save();
+  var missing=getLoaMissing();
+  if(missing.length){
+    var ok=confirm('This LOA is still missing:\n\n'+missing.map(function(m){return '• '+m.label;}).join('\n')+'\n\nThose will show as blank lines on the PDF, which is the #1 reason carriers reject a port. Download it anyway?');
+    render();
+    if(!ok){
+      setTimeout(function(){
+        var el=document.getElementById(missing[0].id);
+        if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.focus&&el.focus();el.classList.add('nr-flash');setTimeout(function(){el.classList.remove('nr-flash');},2000);}
+      },50);
+      return;
+    }
+  }
   var built=buildLOADoc();
   if(!built){alert('PDF library not loaded. Check your connection.');return;}
   built.doc.save(built.filename);
@@ -1667,6 +1703,18 @@ function buildRespDoc(){
 }
 function genResp(){
   save();
+  var missing=getRespMissing();
+  if(missing.length){
+    var ok=confirm('This Resporg form is still missing:\n\n'+missing.map(function(m){return '• '+m.label;}).join('\n')+'\n\nThose will show as blank lines on the PDF. Download it anyway?');
+    render();
+    if(!ok){
+      setTimeout(function(){
+        var el=document.getElementById(missing[0].id);
+        if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.focus&&el.focus();el.classList.add('nr-flash');setTimeout(function(){el.classList.remove('nr-flash');},2000);}
+      },50);
+      return;
+    }
+  }
   var built=buildRespDoc();
   if(!built){alert('PDF library not loaded.');return;}
   built.doc.save(built.filename);
