@@ -1593,28 +1593,46 @@ function step5(){
     +'<div class="ibox amber">&#9989; By clicking Submit, you confirm this information is accurate.</div></div>'
     +'</div>';
 }/* ===== SUCCESS ===== */
-function showSuccess(){
-  submitData();
-  var hl=S.portLocal,ht=S.portTF;
-  document.getElementById('navBar').style.display='none';
-  document.getElementById('content').innerHTML='<div class="card"><div class="succ">'
-    +'<div class="succ-icon">\u2713</div><div class="succ-h">You\'re all set!</div>'
-    +'<div class="succ-body">Your information has been submitted successfully. Your dedicated UNICOM onboarding specialist will review everything and reach out within <strong>1 business day</strong> to walk you through next steps and schedule your go-live date.</div>'
+function successBodyHtml(hl,ht,failed){
+  return '<div class="card"><div class="succ">'
+    +(failed
+      ?('<div class="succ-icon" style="background:rgba(255,80,80,.15);color:#ff6b6b">⚠️</div><div class="succ-h">Your info was saved here — but didn\'t reach us</div>'
+        +'<div class="succ-body">We couldn\'t deliver your submission to our onboarding system just now (likely a connection hiccup). <strong>Please don\'t assume this went through.</strong> Try again below, or if it keeps failing, email <a href="mailto:onboarding@unicomtelecom.com" style="color:var(--pri)">onboarding@unicomtelecom.com</a> directly so nothing falls through the cracks.</div>'
+        +'<button type="button" class="btn btn-pri" style="margin-bottom:16px" onclick="retrySubmit()">🔄 Try sending again</button>')
+      :('<div class="succ-icon">✓</div><div class="succ-h">You\'re all set!</div>'
+        +'<div class="succ-body">Your information has been submitted successfully. Your dedicated UNICOM onboarding specialist will review everything and reach out within <strong>1 business day</strong> to walk you through next steps and schedule your go-live date.</div>'))
     +'<div class="succ-list"><h4>What happens next</h4><ul>'
     +'<li>We review your setup information</li>'
     +((hl||ht)?'<li>We submit your porting request to your carrier</li>':'')
     +'<li>We schedule your port date &amp; go-live call</li>'
     +'<li>We build your phone system in advance</li>'
-    +'<li>On port day \u2014 you\'re live! \uD83C\uDF89</li></ul></div>'
-    +'<p style="font-size:13px;color:var(--tx2);margin-bottom:16px">Questions? Email <a href="mailto:onboarding@unicomtelecom.com" style="color:var(--pri)">onboarding@unicomtelecom.com</a></p>'
+    +'<li>On port day — you\'re live! 🎉</li></ul></div>'
+    +(failed?'':'<p style="font-size:13px;color:var(--tx2);margin-bottom:16px">Questions? Email <a href="mailto:onboarding@unicomtelecom.com" style="color:var(--pri)">onboarding@unicomtelecom.com</a></p>')
     +((hl||ht)?'<div style="background:rgba(79,138,255,.08);border:1px solid rgba(79,138,255,.25);border-radius:12px;padding:18px 22px;max-width:420px;margin:0 auto;text-align:center">'
     +'<div style="font-size:11px;font-weight:700;color:var(--pri);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">&#128196; Your Signed Document'+(hl&&ht?'s':'')+'</div>'
-    +'<div style="font-size:12.5px;color:var(--tx2);margin-bottom:14px;line-height:1.5">Preview or download a copy for your records. We\'ve already emailed the signed original'+(hl&&ht?'s':'')+' to your onboarding team — no need to send anything yourself.</div>'
+    +'<div style="font-size:12.5px;color:var(--tx2);margin-bottom:14px;line-height:1.5">Preview or download a copy for your records.'+(failed?' Since delivery failed above, please also attach this and email it to your onboarding contact.':' We\'ve already emailed the signed original'+(hl&&ht?'s':'')+' to your onboarding team — no need to send anything yourself.')+'</div>'
     +'<div style="display:flex;flex-direction:column;gap:8px;align-items:center">'
     +(hl?'<div style="display:flex;gap:8px"><button type="button" class="btn-pdf" onclick="previewSubmittedDoc(\'loa\')">&#128065; Preview LOA</button><button type="button" class="btn-pdf" onclick="downloadSubmittedDoc(\'loa\')">&#128190; Download LOA</button></div>':'')
     +(ht?'<div style="display:flex;gap:8px"><button type="button" class="btn-pdf" onclick="previewSubmittedDoc(\'resp\')">&#128065; Preview Resporg</button><button type="button" class="btn-pdf" onclick="downloadSubmittedDoc(\'resp\')">&#128190; Download Resporg</button></div>':'')
     +'</div></div>':'')
     +'</div></div>';
+}
+async function showSuccess(){
+  var hl=S.portLocal,ht=S.portTF;
+  document.getElementById('navBar').style.display='none';
+  document.getElementById('content').innerHTML='<div class="card"><div class="succ">'
+    +'<div class="succ-icon">⏳</div><div class="succ-h">Submitting your information…</div>'
+    +'<div class="succ-body">One moment while we send everything to your onboarding team.</div></div></div>';
+  var ok=await submitData();
+  document.getElementById('content').innerHTML=successBodyHtml(hl,ht,!ok);
+}
+function retrySubmit(){
+  var hl=S.portLocal,ht=S.portTF;
+  document.getElementById('content').innerHTML='<div class="card"><div class="succ">'
+    +'<div class="succ-icon">⏳</div><div class="succ-h">Trying again…</div></div></div>';
+  submitData().then(function(ok){
+    document.getElementById('content').innerHTML=successBodyHtml(hl,ht,!ok);
+  });
 }
 
 /* jsPDF's 'datauristring' output is a full data: URI (e.g.
@@ -1656,8 +1674,20 @@ async function submitData(){
       lastSubmittedDocs.resp=respBuilt;
     }
   }
-  if(!W)return;
-  try{await fetch(W,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(err){console.error(err);}
+  if(!W)return false;
+  // IMPORTANT: 'text/plain' here is intentional, not a mistake. Posting with
+  // 'Content-Type: application/json' forces the browser to send a CORS
+  // preflight (OPTIONS) request first; Zapier's Catch Hook endpoint doesn't
+  // answer that preflight, so the browser silently kills the whole request
+  // with a generic "Failed to fetch" and NOTHING ever reaches Zapier — this
+  // was confirmed happening on every real submission. 'text/plain' is a
+  // CORS-"simple" content type, so no preflight is sent; Zapier still parses
+  // the JSON body correctly regardless of the declared content type.
+  try{
+    var resp=await fetch(W,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+    if(!resp.ok){console.error('Zapier webhook returned',resp.status);return false;}
+    return true;
+  }catch(err){console.error(err);return false;}
 }
 function previewSubmittedDoc(kind){
   var built=lastSubmittedDocs[kind];
