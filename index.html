@@ -1286,15 +1286,14 @@ function showSuccess(){
 }
 
 async function submitData(){
-  // TODO: paste the Zapier "Catch Hook" webhook URL here once Aidel creates it.
-  var W='YOUR_ZAPIER_WEBHOOK_URL';
+  var W='https://hooks.zapier.com/hooks/catch/20561289/4dzpzu7/';
   var payload=Object.assign({},S,{submittedAt:new Date().toISOString()});
   // Auto-generate the signed LOA / Resporg PDFs at submit time (independent of
   // whether the client used the "Download" buttons in Step 1), so the emailed
   // copy always reflects exactly what they filled in.
   if(S.portLocal){var loaBuilt=buildLOADoc();if(loaBuilt){payload.loaPdfBase64=loaBuilt.doc.output('datauristring');payload.loaPdfFilename=loaBuilt.filename;}}
   if(S.portTF){var respBuilt=buildRespDoc();if(respBuilt){payload.respPdfBase64=respBuilt.doc.output('datauristring');payload.respPdfFilename=respBuilt.filename;}}
-  if(W==='YOUR_ZAPIER_WEBHOOK_URL')return;
+  if(!W)return;
   try{await fetch(W,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}catch(err){console.error(err);}
 }
 
