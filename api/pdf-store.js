@@ -48,5 +48,4 @@ module.exports = async (req, res) => {
     } catch (err) {
           res.status(500).json({ error: 'Store error: ' + (err && err.message ? err.message : String(err)) });
     }
-};
-———
+};———
