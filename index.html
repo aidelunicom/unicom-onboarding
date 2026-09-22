@@ -1646,6 +1646,22 @@ function splitDataUri(datauri){
   var i=(datauri||'').indexOf(',');
   return i>=0?datauri.substring(i+1):(datauri||'');
 }
+/* Uploads a base64 PDF to this site's own /api/pdf-store endpoint (Vercel
+   Blob storage) and returns a short public HTTPS URL for the resulting file.
+   This exists because Zapier's "Webhooks by Zapier" step has an internal
+   ~12,000-byte cap on any single templated field value, so the full base64
+   PDF (tens of KB) can never be passed through a Zap field directly -- only
+   a short URL can. Returns null (never throws) on any failure, so a blob
+   outage never blocks the rest of the submission -- the base64 fields are
+   still sent as a fallback. */
+async function uploadPdfToBlob(base64,filename){
+  try{
+    var resp=await fetch('/api/pdf-store',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({base64:base64,filename:filename,secret:'940d6a3bbff2df3c4da31f2b89598381a570218013c459b7'})});
+    if(!resp.ok)return null;
+    var j=await resp.json();
+    return j&&j.url?j.url:null;
+  }catch(err){console.error('PDF blob upload failed',err);return null;}
+}
 async function submitData(){
   var W='https://hooks.zapier.com/hooks/catch/28885988/4dznowb/';
   var payload=Object.assign({},S,{submittedAt:new Date().toISOString()});
@@ -1668,6 +1684,8 @@ async function submitData(){
       payload.loaPdfMimeType='application/pdf';
       payload.loaPdfFilename=loaBuilt.filename;
       lastSubmittedDocs.loa=loaBuilt;
+      var loaUrl=await uploadPdfToBlob(payload.loaPdfBase64,loaBuilt.filename);
+      if(loaUrl)payload.loaPdfUrl=loaUrl;
     }
   }
   if(S.portTF){
@@ -1679,6 +1697,8 @@ async function submitData(){
       payload.respPdfMimeType='application/pdf';
       payload.respPdfFilename=respBuilt.filename;
       lastSubmittedDocs.resp=respBuilt;
+      var respUrl=await uploadPdfToBlob(payload.respPdfBase64,respBuilt.filename);
+      if(respUrl)payload.respPdfUrl=respUrl;
     }
   }
   if(!W)return false;
