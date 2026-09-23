@@ -413,15 +413,84 @@ smsOn:false,useCases:[],smsSamples:{},
 var currentAudio=null, sigPads={};
 var lastSubmittedDocs={loa:null,resp:null};
 
-function stateToHash(){try{return btoa(encodeURIComponent(JSON.stringify(S)));}catch(e){return '';}}
+/* --- Save & resume ---------------------------------------------------
+   Previously the ENTIRE form state -- including signature images and any
+   uploaded phone-bill/invoice files -- was base64-encoded straight into
+   the shareable URL's hash. That meant the link itself WAS the data: no
+   login, no server-side storage, and no way to ever revoke a link once
+   it had been shared over email/Slack/text to the several people who
+   help piece an onboarding together.
+
+   Now "Save progress" POSTs the state to our own /api/draft endpoint
+   (backed by Vercel Blob, keyed by a random unguessable id) and the
+   shareable link is just "?d=<id>" on our own domain -- short, and the
+   draft can be deleted (see submitData()) once the onboarding is
+   actually submitted. The link still requires no login and works exactly
+   the same way for sharing/resuming across several people and several
+   days -- that part is unchanged.
+
+   hashToState()/loadFromHashLegacy() are kept ONLY so that links already
+   shared before this change still work when opened. Nothing new is ever
+   written to the hash. */
+var currentDraftId=(function(){try{return new URLSearchParams(location.search).get('d')||null;}catch(e){return null;}})();
 function hashToState(h){try{return JSON.parse(decodeURIComponent(atob(h)));}catch(e){return null;}}
-function persistState(){var h=stateToHash();if(h)history.replaceState(null,'','#'+h);}
-function loadFromHash(){var h=location.hash.slice(1);if(!h)return;var d=hashToState(h);if(d){Object.assign(S,d);if(d.intro===false)S.intro=false;}}
+function loadFromHashLegacy(){
+  var h=location.hash.slice(1);
+  if(!h)return false;
+  var d=hashToState(h);
+  if(d){Object.assign(S,d);if(d.intro===false)S.intro=false;return true;}
+  return false;
+}
+/* Local-only safety net: previously, just moving between steps silently
+   rewrote the URL hash with a fresh copy of the whole form (so an
+   accidental refresh wouldn't lose progress) -- as a side effect that also
+   meant the full data sat in the visible URL bar and browser history the
+   entire time you filled the form out, not just when you deliberately
+   shared a save link. Replacing that with a save to this browser's own
+   localStorage keeps the "don't lose my work on refresh" behavior without
+   ever putting the data in a URL, and it never leaves this device/browser
+   (it isn't a share mechanism -- that's what the "Save progress" button
+   and its server-side link are for). */
+var LOCAL_DRAFT_KEY='unicomOnboardingLocalDraft';
+function persistState(){try{localStorage.setItem(LOCAL_DRAFT_KEY,JSON.stringify(S));}catch(e){}}
+function clearLocalDraft(){try{localStorage.removeItem(LOCAL_DRAFT_KEY);}catch(e){}}
+function loadLocalDraft(){
+  try{
+    var raw=localStorage.getItem(LOCAL_DRAFT_KEY);
+    if(!raw)return false;
+    var d=JSON.parse(raw);
+    if(d){Object.assign(S,d);if(d.intro===false)S.intro=false;return true;}
+  }catch(e){}
+  return false;
+}
+function loadDraft(id){
+  return fetch('/api/draft?id='+encodeURIComponent(id)).then(function(r){
+    if(!r.ok)return r.json().then(function(e){throw new Error((e&&e.error)||'Could not load saved progress');});
+    return r.json();
+  }).then(function(d){
+    if(d&&d.state){Object.assign(S,d.state);if(d.state.intro===false)S.intro=false;}
+  });
+}
 function saveProgress(){
-  persistState();
-  navigator.clipboard.writeText(window.location.href).then(function(){
-    var t=document.getElementById('saveToast');t.classList.add('show');setTimeout(function(){t.classList.remove('show');},3000);
-  }).catch(function(){prompt('Copy this link to resume later:',window.location.href);});
+  var t=document.getElementById('saveToast');
+  fetch('/api/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:currentDraftId,state:S})})
+    .then(function(r){
+      if(!r.ok)return r.json().then(function(e){throw new Error((e&&e.error)||'Save failed');});
+      return r.json();
+    })
+    .then(function(d){
+      currentDraftId=d.id;
+      var newUrl=location.origin+location.pathname+'?d='+encodeURIComponent(d.id);
+      history.replaceState(null,'',newUrl);
+      return navigator.clipboard.writeText(newUrl).then(function(){
+        t.textContent='✅ Link copied! Share it to resume later.';
+        t.classList.add('show');setTimeout(function(){t.classList.remove('show');},3000);
+      }).catch(function(){prompt('Copy this link to resume later:',newUrl);});
+    })
+    .catch(function(err){
+      console.error(err);
+      alert('Sorry, saving your progress failed ('+(err&&err.message?err.message:'network error')+'). Please try again -- your answers are still here on this page, just not saved yet.');
+    });
 }
 function go(dir){
   save();
@@ -1695,6 +1764,14 @@ async function submitData(){
   try{
     var resp=await fetch('/api/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!resp.ok){console.error('Submit endpoint returned',resp.status);return false;}
+    // Best-effort cleanup: once the real submission has gone through, the
+    // saved-progress draft (if any) has served its purpose. Deleting it
+    // means a resume link that already got submitted can't still hand out
+    // read access to everything in it. Never let this block success.
+    if(currentDraftId){
+      fetch('/api/draft?id='+encodeURIComponent(currentDraftId),{method:'DELETE'}).catch(function(){});
+    }
+    clearLocalDraft();
     return true;
   }catch(err){console.error(err);return false;}
 }
@@ -2026,8 +2103,21 @@ function updateScriptPlaceholder(name){
   document.querySelectorAll('.grt-script').forEach(function(ta){if(ta.value.indexOf('[Company Name]')>=0)ta.value=ta.value.replace(/\[Company Name\]/g,name);});
 }
 
-loadFromHash();
-render();
+(function boot(){
+  if(currentDraftId){
+    document.getElementById('content').innerHTML='<div class="card"><div class="succ"><div class="succ-icon">⏳</div><div class="succ-h">Loading your saved progress…</div></div></div>';
+    loadDraft(currentDraftId).catch(function(err){
+      console.error(err);
+      currentDraftId=null;
+      history.replaceState(null,'',location.origin+location.pathname);
+      alert((err&&err.message)||'Could not load saved progress.');
+    }).then(function(){render();});
+    return;
+  }
+  // Backward compatibility only -- see the comment above loadFromHashLegacy().
+  if(!loadFromHashLegacy())loadLocalDraft();
+  render();
+})();
 </script>
 </body>
 </html>
