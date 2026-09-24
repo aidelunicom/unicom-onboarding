@@ -721,15 +721,9 @@ function step1(){
         +'<option value="">Select state\u2026</option>'
         +US_STATES.map(function(s){return '<option value="'+s+'"'+(S.newState===s?' selected':'')+'>'+s+'</option>';}).join('')
         +'</select></div>'
-        +'<div class="field"><label>Primary Area Code</label><select id="newPrimaryAC">'
-        +'<option value="">Choose\u2026</option>'
-        +((S.newState&&STATE_CODES[S.newState])?STATE_CODES[S.newState].map(function(a){return '<option value="'+a+'"'+(S.newPrimaryAC===a?' selected':'')+'>'+a+'</option>';}).join(''):'')
-        +'</select></div></div>'
+        +'<div class="field"><label>Primary Area Code</label><input id="newPrimaryAC" type="text" inputmode="numeric" maxlength="3" pattern="[0-9]{3}" placeholder="e.g. 212" value="'+e(S.newPrimaryAC||'')+'"></div></div>'
         +'<div class="field-row3">'
-        +'<div class="field"><label>Backup Area Code <span style="font-weight:400;color:var(--tx2)">(if primary unavailable)</span></label><select id="newBackupAC">'
-        +'<option value="">Choose\u2026</option>'
-        +((S.newState&&STATE_CODES[S.newState])?STATE_CODES[S.newState].map(function(a){return '<option value="'+a+'"'+(S.newBackupAC===a?' selected':'')+'>'+a+'</option>';}).join(''):'')
-        +'</select></div>'
+        +'<div class="field"><label>Backup Area Code <span style="font-weight:400;color:var(--tx2)">(if primary unavailable)</span></label><input id="newBackupAC" type="text" inputmode="numeric" maxlength="3" pattern="[0-9]{3}" placeholder="e.g. 315" value="'+e(S.newBackupAC||'')+'"></div>'
         +'<div class="field"><label>How many numbers?</label><input id="newQty" type="number" min="1" max="50" value="'+(S.newQty||1)+'" placeholder="1"></div>'
         +'<div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="newVanity"'+(S.newVanity?' checked':'')+' onchange="updNewACs()" style="accent-color:var(--pri)"> Request vanity number</label>'
         +'<div class="field-hint">Additional cost applies</div></div>'
